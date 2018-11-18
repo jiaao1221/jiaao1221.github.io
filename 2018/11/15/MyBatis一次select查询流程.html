@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="准备还是按上一篇搭的环境，这一次主要分析一次select查询所经历的过程。 开始我们在List&amp;lt;User&amp;gt; result = sqlSession.selectList(&amp;quot;mapper.UserMapper.selectUserById&amp;quot;,params);下断点进入：1234567891011121314151617public &amp;lt;E&amp;gt; List&amp;lt;">
+<meta name="keywords" content="Mybatis">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MyBatis一次select查询流程">
+<meta property="og:url" content="http://jiaao67.xn--6qq986b3xl/2018/11/15/MyBatis一次select查询流程.html">
+<meta property="og:site_name" content="jiaao&#39;s blog">
+<meta property="og:description" content="准备还是按上一篇搭的环境，这一次主要分析一次select查询所经历的过程。 开始我们在List&amp;lt;User&amp;gt; result = sqlSession.selectList(&amp;quot;mapper.UserMapper.selectUserById&amp;quot;,params);下断点进入：1234567891011121314151617public &amp;lt;E&amp;gt; List&amp;lt;">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="https://img.mukewang.com/5b50ab780001397205000534.jpg">
+<meta property="og:image" content="http://img.my.csdn.net/uploads/201705/27/1495821095_1883.jpg">
+<meta property="og:updated_time" content="2018-11-18T15:47:08.852Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MyBatis一次select查询流程">
+<meta name="twitter:description" content="准备还是按上一篇搭的环境，这一次主要分析一次select查询所经历的过程。 开始我们在List&amp;lt;User&amp;gt; result = sqlSession.selectList(&amp;quot;mapper.UserMapper.selectUserById&amp;quot;,params);下断点进入：1234567891011121314151617public &amp;lt;E&amp;gt; List&amp;lt;">
+<meta name="twitter:image" content="https://img.mukewang.com/5b50ab780001397205000534.jpg">
+
+
+
+
+
+
+  <link rel="canonical" href="http://jiaao67.xn--6qq986b3xl/2018/11/15/MyBatis一次select查询流程.html">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>MyBatis一次select查询流程 | jiaao's blog</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">jiaao's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <p class="site-subtitle">Stay Hungry, Stay Foolish</p>
+      
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://jiaao67.xn--6qq986b3xl/2018/11/15/MyBatis一次select查询流程.html">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="贾傲">
+      <meta itemprop="description" content="关于学习，生活">
+      <meta itemprop="image" content="/images/jiaao.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="jiaao's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">MyBatis一次select查询流程
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2018-11-15 17:32:16" itemprop="dateCreated datePublished" datetime="2018-11-15T17:32:16+08:00">2018-11-15</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2018-11-18 23:47:08" itemprop="dateModified" datetime="2018-11-18T23:47:08+08:00">2018-11-18</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/学习笔记/" itemprop="url" rel="index"><span itemprop="name">学习笔记</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon">
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="准备"><a href="#准备" class="headerlink" title="准备"></a>准备</h1><p>还是按上一篇搭的环境，这一次主要分析一次select查询所经历的过程。</p>
+<h1 id="开始"><a href="#开始" class="headerlink" title="开始"></a>开始</h1><p>我们在<code>List&lt;User&gt; result = sqlSession.selectList(&quot;mapper.UserMapper.selectUserById&quot;,params);</code>下断点进入：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">selectList</span><span class="params">(String statement, Object parameter)</span> </span>&#123;</span><br><span class="line">     <span class="keyword">return</span> <span class="keyword">this</span>.selectList(statement, parameter, RowBounds.DEFAULT);</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line"> <span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">selectList</span><span class="params">(String statement, Object parameter, RowBounds rowBounds)</span> </span>&#123;</span><br><span class="line">     List var5;</span><br><span class="line">     <span class="keyword">try</span> &#123;</span><br><span class="line">         MappedStatement ms = <span class="keyword">this</span>.configuration.getMappedStatement(statement);</span><br><span class="line">         var5 = <span class="keyword">this</span>.executor.query(ms, <span class="keyword">this</span>.wrapCollection(parameter), rowBounds, Executor.NO_RESULT_HANDLER);</span><br><span class="line">     &#125; <span class="keyword">catch</span> (Exception var9) &#123;</span><br><span class="line">         <span class="keyword">throw</span> ExceptionFactory.wrapException(<span class="string">"Error querying database.  Cause: "</span> + var9, var9);</span><br><span class="line">     &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">         ErrorContext.instance().reset();</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">return</span> var5;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>其中“mapper.UserMapper.selectUserById”是配置在Mapper.xml 的Statement ID，params 是传递的查询参数。MyBatis在初始化的时候，会将MyBatis的配置信息全部加载到内存中，使用org.apache.ibatis.session.Configuration实例来维护。使用者可以使用sqlSession.getConfiguration()方法来获取。MyBatis的配置文件中配置信息的组织格式和内存中对象的组织格式几乎完全对应的。<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">select</span> <span class="attr">id</span>=<span class="string">"selectUserById"</span> <span class="attr">parameterType</span>=<span class="string">"int"</span> <span class="attr">resultType</span>=<span class="string">"entity.User"</span>&gt;</span></span><br><span class="line">     SELECT * from tb_user where id=#&#123;id&#125;</span><br><span class="line"> <span class="tag">&lt;/<span class="name">select</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>加载到内存中会生成一个对应的MappedStatement对象，然后会以key=”mapper.UserMapper.selectUserById” ，value为MappedStatement对象的形式维护到Configuration的一个Map中。当以后需要使用的时候，只需要通过Id值来获取就可以了。从上述的代码中我们可以看到SqlSession的职能是：SqlSession根据Statement ID, 在mybatis配置对象Configuration中获取到对应的MappedStatement对象，然后调用mybatis执行器来执行具体的操作。<br>然后通过Executor执行query()方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     BoundSql boundSql = ms.getBoundSql(parameterObject);</span><br><span class="line">     CacheKey key = <span class="keyword">this</span>.createCacheKey(ms, parameterObject, rowBounds, boundSql);</span><br><span class="line">     <span class="keyword">return</span> <span class="keyword">this</span>.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>其中BoundSql存放了查询的sql语句和参数，CacheKey则是通过sql语句，参数等一系列生成的key，因为MyBatis有一级缓存和二级缓存，基本原理就是将查询的结果保存在一个map中，通过CacheKey在map中查找缓存的值。具体关于缓存的内容之后会再详细介绍。接着又进入到query函数：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     Cache cache = ms.getCache();</span><br><span class="line">     <span class="keyword">if</span>(cache != <span class="keyword">null</span>) &#123;</span><br><span class="line">         <span class="keyword">this</span>.flushCacheIfRequired(ms);</span><br><span class="line">         <span class="keyword">if</span>(ms.isUseCache() &amp;&amp; resultHandler == <span class="keyword">null</span>) &#123;</span><br><span class="line">             <span class="keyword">this</span>.ensureNoOutParams(ms, parameterObject, boundSql);</span><br><span class="line">             List&lt;E&gt; list = (List)<span class="keyword">this</span>.tcm.getObject(cache, key);</span><br><span class="line">             <span class="keyword">if</span>(list == <span class="keyword">null</span>) &#123;</span><br><span class="line">                 list = <span class="keyword">this</span>.delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);</span><br><span class="line">                 <span class="keyword">this</span>.tcm.putObject(cache, key, list);</span><br><span class="line">             &#125;</span><br><span class="line"></span><br><span class="line">             <span class="keyword">return</span> list;</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">return</span> <span class="keyword">this</span>.delegate.query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>这段代码主要也是和缓存有关，首先先从MappedStatement得到二级缓存，如果不为空，则在缓存中查找，如果有则直接返回，如果没有，则执行delegate.query(),并将查询得到的内容更新到缓存中。如果二级缓存为空则直接执行delegate.query()。这里delegate指的是SimpleExecutor，持有它的是CacheExecutor作为装饰类，具体Executor的生成会和缓存结合起来讲，现在直接看SimpleExecutor的query()方法(其实是它父类baseExecutor的方法)：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     ErrorContext.instance().resource(ms.getResource()).activity(<span class="string">"executing a query"</span>).object(ms.getId());</span><br><span class="line">     <span class="keyword">if</span>(<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">         <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Executor was closed."</span>);</span><br><span class="line">     &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">         <span class="keyword">if</span>(<span class="keyword">this</span>.queryStack == <span class="number">0</span> &amp;&amp; ms.isFlushCacheRequired()) &#123;</span><br><span class="line">             <span class="keyword">this</span>.clearLocalCache();</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         List list;</span><br><span class="line">         <span class="keyword">try</span> &#123;</span><br><span class="line">             ++<span class="keyword">this</span>.queryStack;</span><br><span class="line">             list = resultHandler == <span class="keyword">null</span>?(List)<span class="keyword">this</span>.localCache.getObject(key):<span class="keyword">null</span>;</span><br><span class="line">             <span class="keyword">if</span>(list != <span class="keyword">null</span>) &#123;</span><br><span class="line">                 <span class="keyword">this</span>.handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);</span><br><span class="line">             &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                 list = <span class="keyword">this</span>.queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);</span><br><span class="line">             &#125;</span><br><span class="line">         &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">             --<span class="keyword">this</span>.queryStack;</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         <span class="keyword">if</span>(<span class="keyword">this</span>.queryStack == <span class="number">0</span>) &#123;</span><br><span class="line">             Iterator i$ = <span class="keyword">this</span>.deferredLoads.iterator();</span><br><span class="line"></span><br><span class="line">             <span class="keyword">while</span>(i$.hasNext()) &#123;</span><br><span class="line">                 BaseExecutor.DeferredLoad deferredLoad = (BaseExecutor.DeferredLoad)i$.next();</span><br><span class="line">                 deferredLoad.load();</span><br><span class="line">             &#125;</span><br><span class="line"></span><br><span class="line">             <span class="keyword">this</span>.deferredLoads.clear();</span><br><span class="line">             <span class="keyword">if</span>(<span class="keyword">this</span>.configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) &#123;</span><br><span class="line">                 <span class="keyword">this</span>.clearLocalCache();</span><br><span class="line">             &#125;</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         <span class="keyword">return</span> list;</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>看起来比较长，但流程还是比较清晰，首先看是否需要清空缓存，然后在一级缓存(localCache)中查询，如果未命中则再向数据库查询，这里我们跳过查询缓存的内容，直接进入到查询数据库的过程，即queryFromDatabase()过程：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">queryFromDatabase</span><span class="params">(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     <span class="keyword">this</span>.localCache.putObject(key, ExecutionPlaceholder.EXECUTION_PLACEHOLDER);</span><br><span class="line"></span><br><span class="line">     List list;</span><br><span class="line">     <span class="keyword">try</span> &#123;</span><br><span class="line">         list = <span class="keyword">this</span>.doQuery(ms, parameter, rowBounds, resultHandler, boundSql);</span><br><span class="line">     &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">         <span class="keyword">this</span>.localCache.removeObject(key);</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">this</span>.localCache.putObject(key, list);</span><br><span class="line">     <span class="keyword">if</span>(ms.getStatementType() == StatementType.CALLABLE) &#123;</span><br><span class="line">         <span class="keyword">this</span>.localOutputParameterCache.putObject(key, parameter);</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">return</span> list;</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line"> <span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">doQuery</span><span class="params">(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     Statement stmt = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">     List var9;</span><br><span class="line">     <span class="keyword">try</span> &#123;</span><br><span class="line">         Configuration configuration = ms.getConfiguration();</span><br><span class="line">         StatementHandler handler = configuration.newStatementHandler(<span class="keyword">this</span>.wrapper, ms, parameter, rowBounds, resultHandler, boundSql);</span><br><span class="line">         stmt = <span class="keyword">this</span>.prepareStatement(handler, ms.getStatementLog());</span><br><span class="line">         var9 = handler.query(stmt, resultHandler);</span><br><span class="line">     &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">         <span class="keyword">this</span>.closeStatement(stmt);</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">return</span> var9;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到又交给了doQuery()去实现查询，queryFromDatabase()是由父类baseexecutor实现的，而doquery是由子类simpleexecutor实现的。转进到doquery方法中，首先取得Configuration，再由其生成StatementHandler，这里也稍微提一下，在MyBatis中有四大组件：executor，statementHandler，parameterHandler和resultHandler对象，都是由Configuration生成。</p>
+<blockquote>
+<p>StatementHandler：处理sql语句预编译，设置参数等相关工作；<br>ParameterHandler：设置预编译参数用的;<br>ResultSetHandler：       处理结果集;</p>
+</blockquote>
+<p>具体作用如下图所示<br><img src="https://img.mukewang.com/5b50ab780001397205000534.jpg" alt="流程总结"></p>
+<p>  这里只讲一下statementHandler，StatementHandler作为一个接口，有四个实现类，他们的关系如下图所示：<img src="http://img.my.csdn.net/uploads/201705/27/1495821095_1883.jpg" alt="StatementHandler"></p>
+<p>由configuration产生的StatementHandler其实是RoutingStatementHandler，源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">    <span class="function"><span class="keyword">public</span> StatementHandler <span class="title">newStatementHandler</span><span class="params">(Executor executor, MappedStatement mappedStatement, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql)</span> </span>&#123;</span><br><span class="line">        StatementHandler statementHandler = <span class="keyword">new</span> RoutingStatementHandler(executor, mappedStatement, parameterObject, rowBounds, resultHandler, boundSql);</span><br><span class="line">        StatementHandler statementHandler = (StatementHandler)<span class="keyword">this</span>.interceptorChain.pluginAll(statementHandler);</span><br><span class="line">        <span class="keyword">return</span> statementHandler;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">RoutingStatementHandler</span><span class="params">(Executor executor, MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">switch</span>(RoutingStatementHandler.SyntheticClass_1.$SwitchMap$org$apache$ibatis$mapping$StatementType[ms.getStatementType().ordinal()]) &#123;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">1</span>:</span><br><span class="line">            <span class="keyword">this</span>.delegate = <span class="keyword">new</span> SimpleStatementHandler(executor, ms, parameter, rowBounds, resultHandler, boundSql);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">2</span>:</span><br><span class="line">            <span class="keyword">this</span>.delegate = <span class="keyword">new</span> PreparedStatementHandler(executor, ms, parameter, rowBounds, resultHandler, boundSql);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">case</span> <span class="number">3</span>:</span><br><span class="line">            <span class="keyword">this</span>.delegate = <span class="keyword">new</span> CallableStatementHandler(executor, ms, parameter, rowBounds, resultHandler, boundSql);</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Unknown statement type: "</span> + ms.getStatementType());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">```  </span><br><span class="line">在产生statementHandler的过程中`StatementHandler statementHandler = (StatementHandler)<span class="keyword">this</span>.interceptorChain.pluginAll(statementHandler);`是起到拦截器的作用，关于拦截器又是一大堆，这里就不发散了，继续回到doQuery()函数中，得到StatementHandler后执行</span><br><span class="line">`stmt = <span class="keyword">this</span>.prepareStatement(handler, ms.getStatementLog());</span><br><span class="line">var9 = handler.query(stmt, resultHandler);`</span><br><span class="line">先进入prepareStatement():</span><br><span class="line">```java</span><br><span class="line">   <span class="function"><span class="keyword">private</span> Statement <span class="title">prepareStatement</span><span class="params">(StatementHandler handler, Log statementLog)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Connection connection = <span class="keyword">this</span>.getConnection(statementLog);</span><br><span class="line">        Statement stmt = handler.prepare(connection);</span><br><span class="line">        handler.parameterize(stmt);</span><br><span class="line">        <span class="keyword">return</span> stmt;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<p>Connection是由底层的datasource产生的，用来与数据库的连接。具体看下一句：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Statement <span class="title">prepare</span><span class="params">(Connection connection)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     ErrorContext.instance().sql(<span class="keyword">this</span>.boundSql.getSql());</span><br><span class="line">     Statement statement = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">try</span> &#123;</span><br><span class="line">         statement = <span class="keyword">this</span>.instantiateStatement(connection);</span><br><span class="line">         <span class="keyword">this</span>.setStatementTimeout(statement);</span><br><span class="line">         <span class="keyword">this</span>.setFetchSize(statement);</span><br><span class="line">         <span class="keyword">return</span> statement;</span><br><span class="line">     &#125; <span class="keyword">catch</span> (SQLException var4) &#123;</span><br><span class="line">         <span class="keyword">this</span>.closeStatement(statement);</span><br><span class="line">         <span class="keyword">throw</span> var4;</span><br><span class="line">     &#125; <span class="keyword">catch</span> (Exception var5) &#123;</span><br><span class="line">         <span class="keyword">this</span>.closeStatement(statement);</span><br><span class="line">         <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Error preparing statement.  Cause: "</span> + var5, var5);</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>这个prepare()是由父类BaseStatementHandler实现的，instantiateStatement()是由子类实现的，这里RoutingStatementHandler作为一个代理类，持有的是PreparedStatementHandler类。故这里的instantiateStatement()其实是调用的PreparedStatementHandler类的方法。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> Statement <span class="title">instantiateStatement</span><span class="params">(Connection connection)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     String sql = <span class="keyword">this</span>.boundSql.getSql();</span><br><span class="line">     <span class="keyword">if</span>(<span class="keyword">this</span>.mappedStatement.getKeyGenerator() <span class="keyword">instanceof</span> Jdbc3KeyGenerator) &#123;</span><br><span class="line">         String[] keyColumnNames = <span class="keyword">this</span>.mappedStatement.getKeyColumns();</span><br><span class="line">         <span class="keyword">return</span> keyColumnNames == <span class="keyword">null</span>?connection.prepareStatement(sql, <span class="number">1</span>):connection.prepareStatement(sql, keyColumnNames);</span><br><span class="line">     &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">         <span class="keyword">return</span> <span class="keyword">this</span>.mappedStatement.getResultSetType() != <span class="keyword">null</span>?connection.prepareStatement(sql, <span class="keyword">this</span>.mappedStatement.getResultSetType().getValue(), <span class="number">1007</span>):connection.prepareStatement(sql);</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>就是调用PreparedStatement来执行SQL语句，这样在第一次执行sql语句时会进行预编译，在接下来执行相同的SQL语句时会提高数据库性能。具体关于PreparedStatement的分析，之后会在分析JDBC源码时探讨。再回到prepareStatement()方法中：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">parameterize</span><span class="params">(Statement statement)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     <span class="keyword">this</span>.delegate.parameterize(statement);</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">parameterize</span><span class="params">(Statement statement)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     <span class="keyword">this</span>.parameterHandler.setParameters((PreparedStatement)statement);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>其实就是调用parameterHandler设置参数。<br>得到statement后再回到doquery()。<br><code>var9 = handler.query(stmt, resultHandler);</code><br>进入到query()方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(Statement statement, ResultHandler resultHandler)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>.delegate.query(statement, resultHandler);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(Statement statement, ResultHandler resultHandler)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">    PreparedStatement ps = (PreparedStatement)statement;</span><br><span class="line">    ps.execute();</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>.resultSetHandler.handleResultSets(ps);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>很明显就是调用PreparedStatementHandler的query()方法，然后通过PreparedStatement的execute()的方法得到结果。最后将结果用resultSetHandler处理，返回的list中持有查询得到的User对象。这样就完成了整个查询过程。</p>
+<h1 id="结尾"><a href="#结尾" class="headerlink" title="结尾"></a>结尾</h1><p>简单的查询背后经历的过程却十分复杂，不过大概可以分为几个过程，sqlsession将查询委托给executor，executor交给StatementHandler去查询，而StatementHandler交给底层的数据源去查询，中间还有parameterHandler设置参数和resultHandler处理结果。还有很多内容都省略掉了，缓存，拦截器，四大组件的实现，这些之后会分别新开文章详细探讨。</p>
+<p>最后要感谢我的宝宝@67，没有你就没有动力哦!</p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Mybatis/" rel="tag"># Mybatis</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/11/13/Mybatis初始化过程.html" rel="next" title="Mybatis初始化过程">
+                <i class="fa fa-chevron-left"></i> Mybatis初始化过程
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC80MDkwNi8xNzQzMQ=="></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/jiaao.jpg" alt="贾傲">
+            
+              <p class="site-author-name" itemprop="name">贾傲</p>
+              <p class="site-description motion-element" itemprop="description">关于学习，生活</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#准备"><span class="nav-number">1.</span> <span class="nav-text">准备</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#开始"><span class="nav-number">2.</span> <span class="nav-text">开始</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#结尾"><span class="nav-number">3.</span> <span class="nav-text">结尾</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贾傲</span>
+
+  
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> v6.5.0</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv" title="总访客量">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="site-pv" title="总访问量">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+      <div>
+        <!-- Go to www.addthis.com/dashboard to customize your tools -->
+<div class="addthis_inline_share_toolbox">
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-5be52b92832a63b5" async="async"></script>
+</div>
+
+      </div>
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.5.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+    <script type="text/javascript">
+      window.livereOptions = {
+        refer: '2018/11/15/MyBatis一次select查询流程.html'
+      };
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
