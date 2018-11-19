@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="写在之前在上一篇关于一次select所经历的流程可以看到，MyBatis中的四大对象占据着非常重要的地位，我们将一一拿出来研究一下。这一篇主要探讨Executor的实现 Executor接口首先看看接口的源码：123456789101112131415161718192021222324252627282930313233343536373839404142434445464748   ////">
+<meta name="keywords" content="Mybatis">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MyBatis Executor接口实现">
+<meta property="og:url" content="http://jiaao67.xn--6qq986b3xl/2018/11/19/MyBatis-Executor接口实现.html">
+<meta property="og:site_name" content="jiaao&#39;s blog">
+<meta property="og:description" content="写在之前在上一篇关于一次select所经历的流程可以看到，MyBatis中的四大对象占据着非常重要的地位，我们将一一拿出来研究一下。这一篇主要探讨Executor的实现 Executor接口首先看看接口的源码：123456789101112131415161718192021222324252627282930313233343536373839404142434445464748   ////">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="https://img-blog.csdn.net/20180802180030723?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2lrb3dueW91/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70">
+<meta property="og:updated_time" content="2018-11-19T15:43:28.807Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="MyBatis Executor接口实现">
+<meta name="twitter:description" content="写在之前在上一篇关于一次select所经历的流程可以看到，MyBatis中的四大对象占据着非常重要的地位，我们将一一拿出来研究一下。这一篇主要探讨Executor的实现 Executor接口首先看看接口的源码：123456789101112131415161718192021222324252627282930313233343536373839404142434445464748   ////">
+<meta name="twitter:image" content="https://img-blog.csdn.net/20180802180030723?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2lrb3dueW91/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70">
+
+
+
+
+
+
+  <link rel="canonical" href="http://jiaao67.xn--6qq986b3xl/2018/11/19/MyBatis-Executor接口实现.html">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>MyBatis Executor接口实现 | jiaao's blog</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">jiaao's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <p class="site-subtitle">Stay Hungry, Stay Foolish</p>
+      
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://jiaao67.xn--6qq986b3xl/2018/11/19/MyBatis-Executor接口实现.html">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="贾傲">
+      <meta itemprop="description" content="关于学习，生活">
+      <meta itemprop="image" content="/images/jiaao.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="jiaao's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">MyBatis Executor接口实现
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2018-11-19 11:50:31 / 修改时间：23:43:28" itemprop="dateCreated datePublished" datetime="2018-11-19T11:50:31+08:00">2018-11-19</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/学习笔记/" itemprop="url" rel="index"><span itemprop="name">学习笔记</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon">
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="写在之前"><a href="#写在之前" class="headerlink" title="写在之前"></a>写在之前</h1><p>在上一篇关于一次select所经历的流程可以看到，MyBatis中的四大对象占据着非常重要的地位，我们将一一拿出来研究一下。这一篇主要探讨Executor的实现</p>
+<h1 id="Executor接口"><a href="#Executor接口" class="headerlink" title="Executor接口"></a>Executor接口</h1><p>首先看看接口的源码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">   <span class="comment">//</span></span><br><span class="line"><span class="comment">// Source code recreated from a .class file by IntelliJ IDEA</span></span><br><span class="line"><span class="comment">// (powered by Fernflower decompiler)</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">package</span> org.apache.ibatis.executor;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.sql.SQLException;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.cache.CacheKey;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.mapping.BoundSql;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.mapping.MappedStatement;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.reflection.MetaObject;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.session.ResultHandler;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.session.RowBounds;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.transaction.Transaction;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    ResultHandler NO_RESULT_HANDLER = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">int</span> <span class="title">update</span><span class="params">(MappedStatement var1, Object var2)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(MappedStatement var1, Object var2, RowBounds var3, ResultHandler var4, CacheKey var5, BoundSql var6)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(MappedStatement var1, Object var2, RowBounds var3, ResultHandler var4)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function">List&lt;BatchResult&gt; <span class="title">flushStatements</span><span class="params">()</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">commit</span><span class="params">(<span class="keyword">boolean</span> var1)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">rollback</span><span class="params">(<span class="keyword">boolean</span> var1)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function">CacheKey <span class="title">createCacheKey</span><span class="params">(MappedStatement var1, Object var2, RowBounds var3, BoundSql var4)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">isCached</span><span class="params">(MappedStatement var1, CacheKey var2)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">clearLocalCache</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">deferLoad</span><span class="params">(MappedStatement var1, MetaObject var2, String var3, CacheKey var4, Class&lt;?&gt; var5)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function">Transaction <span class="title">getTransaction</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">close</span><span class="params">(<span class="keyword">boolean</span> var1)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">isClosed</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">setExecutorWrapper</span><span class="params">(Executor var1)</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>其定义的接口方法我们可以看出，对应的增删改语句是通过Executor接口的update方法进行的，查询是通过query方法进行的。关于接口的实现类，如下图所示:<br><img src="https://img-blog.csdn.net/20180802180030723?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2lrb3dueW91/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70" alt="此处输入图片的描述"><br>其中<code>BaseExecutor</code>为模板模式中的模板类，实现了Executor的大部分方法。它有三个子类：</p>
+<blockquote>
+<p>ExecutorType.SIMPLE: 这个执行器类型不做特殊的事情。它为每个语句的执行创建一个新的预处理语句。<br>ExecutorType.REUSE: 这个执行器类型会复用预处理语句。<br>ExecutorType.BATCH: 这个执行器会批量执行所有更新语句,如果 SELECT 在它们中间执行还会标定它们是 必须的,来保证一个简单并易于理解的行为。</p>
+</blockquote>
+<h1 id="Executor的生成"><a href="#Executor的生成" class="headerlink" title="Executor的生成"></a>Executor的生成</h1><p>Executor是和SqlSession绑定在一起的，每一个SqlSession都有自己的Executor，故我们可以在生成SqlSession的过程中看到：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> SqlSession <span class="title">openSessionFromDataSource</span><span class="params">(ExecutorType execType, TransactionIsolationLevel level, <span class="keyword">boolean</span> autoCommit)</span> </span>&#123;</span><br><span class="line">     Transaction tx = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">     DefaultSqlSession var8;</span><br><span class="line">     <span class="keyword">try</span> &#123;</span><br><span class="line">         Environment environment = <span class="keyword">this</span>.configuration.getEnvironment();</span><br><span class="line">         TransactionFactory transactionFactory = <span class="keyword">this</span>.getTransactionFactoryFromEnvironment(environment);</span><br><span class="line">         tx = transactionFactory.newTransaction(environment.getDataSource(), level, autoCommit);</span><br><span class="line">         Executor executor = <span class="keyword">this</span>.configuration.newExecutor(tx, execType);</span><br><span class="line">         var8 = <span class="keyword">new</span> DefaultSqlSession(<span class="keyword">this</span>.configuration, executor, autoCommit);</span><br><span class="line">     &#125; <span class="keyword">catch</span> (Exception var12) &#123;</span><br><span class="line">         <span class="keyword">this</span>.closeTransaction(tx);</span><br><span class="line">         <span class="keyword">throw</span> ExceptionFactory.wrapException(<span class="string">"Error opening session.  Cause: "</span> + var12, var12);</span><br><span class="line">     &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">         ErrorContext.instance().reset();</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">return</span> var8;</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line"> <span class="function"><span class="keyword">public</span> Executor <span class="title">newExecutor</span><span class="params">(Transaction transaction, ExecutorType executorType)</span> </span>&#123;</span><br><span class="line">     executorType = executorType == <span class="keyword">null</span>?<span class="keyword">this</span>.defaultExecutorType:executorType;</span><br><span class="line">     executorType = executorType == <span class="keyword">null</span>?ExecutorType.SIMPLE:executorType;</span><br><span class="line">     Object executor;</span><br><span class="line">     <span class="keyword">if</span>(ExecutorType.BATCH == executorType) &#123;</span><br><span class="line">         executor = <span class="keyword">new</span> BatchExecutor(<span class="keyword">this</span>, transaction);</span><br><span class="line">     &#125; <span class="keyword">else</span> <span class="keyword">if</span>(ExecutorType.REUSE == executorType) &#123;</span><br><span class="line">         executor = <span class="keyword">new</span> ReuseExecutor(<span class="keyword">this</span>, transaction);</span><br><span class="line">     &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">         executor = <span class="keyword">new</span> SimpleExecutor(<span class="keyword">this</span>, transaction);</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">if</span>(<span class="keyword">this</span>.cacheEnabled) &#123;</span><br><span class="line">         executor = <span class="keyword">new</span> CachingExecutor((Executor)executor);</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     Executor executor = (Executor)<span class="keyword">this</span>.interceptorChain.pluginAll(executor);</span><br><span class="line">     <span class="keyword">return</span> executor;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到configuration会根据不同的executorType生成不同的Executor，默认是SimpleExecutor，如果开启了二级缓存（cacheEnabled默认为true），会返回一个CachingExecutor的装饰类，持有之前生成的executor。</p>
+<h1 id="BaseExecutor"><a href="#BaseExecutor" class="headerlink" title="BaseExecutor"></a>BaseExecutor</h1><p>首先看看模板类的实现：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br></pre></td><td class="code"><pre><span class="line">   <span class="comment">//</span></span><br><span class="line"><span class="comment">// Source code recreated from a .class file by IntelliJ IDEA</span></span><br><span class="line"><span class="comment">// (powered by Fernflower decompiler)</span></span><br><span class="line"><span class="comment">//</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">package</span> org.apache.ibatis.executor;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.sql.Connection;</span><br><span class="line"><span class="keyword">import</span> java.sql.SQLException;</span><br><span class="line"><span class="keyword">import</span> java.sql.Statement;</span><br><span class="line"><span class="keyword">import</span> java.util.Iterator;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.ConcurrentLinkedQueue;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.cache.CacheKey;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.cache.impl.PerpetualCache;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.logging.Log;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.logging.LogFactory;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.logging.jdbc.ConnectionLogger;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.mapping.BoundSql;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.mapping.MappedStatement;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.mapping.ParameterMapping;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.mapping.ParameterMode;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.mapping.StatementType;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.reflection.MetaObject;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.reflection.factory.ObjectFactory;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.session.Configuration;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.session.LocalCacheScope;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.session.ResultHandler;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.session.RowBounds;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.transaction.Transaction;</span><br><span class="line"><span class="keyword">import</span> org.apache.ibatis.type.TypeHandlerRegistry;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">BaseExecutor</span> <span class="keyword">implements</span> <span class="title">Executor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Log log = LogFactory.getLog(BaseExecutor.class);</span><br><span class="line">    <span class="keyword">protected</span> Transaction transaction;</span><br><span class="line">    <span class="keyword">protected</span> Executor wrapper;</span><br><span class="line">    <span class="keyword">protected</span> ConcurrentLinkedQueue&lt;BaseExecutor.DeferredLoad&gt; deferredLoads;</span><br><span class="line">    <span class="keyword">protected</span> PerpetualCache localCache;</span><br><span class="line">    <span class="keyword">protected</span> PerpetualCache localOutputParameterCache;</span><br><span class="line">    <span class="keyword">protected</span> Configuration configuration;</span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">int</span> queryStack = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">boolean</span> closed;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="title">BaseExecutor</span><span class="params">(Configuration configuration, Transaction transaction)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.transaction = transaction;</span><br><span class="line">        <span class="keyword">this</span>.deferredLoads = <span class="keyword">new</span> ConcurrentLinkedQueue();</span><br><span class="line">        <span class="keyword">this</span>.localCache = <span class="keyword">new</span> PerpetualCache(<span class="string">"LocalCache"</span>);</span><br><span class="line">        <span class="keyword">this</span>.localOutputParameterCache = <span class="keyword">new</span> PerpetualCache(<span class="string">"LocalOutputParameterCache"</span>);</span><br><span class="line">        <span class="keyword">this</span>.closed = <span class="keyword">false</span>;</span><br><span class="line">        <span class="keyword">this</span>.configuration = configuration;</span><br><span class="line">        <span class="keyword">this</span>.wrapper = <span class="keyword">this</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Transaction <span class="title">getTransaction</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Executor was closed."</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>.transaction;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">close</span><span class="params">(<span class="keyword">boolean</span> forceRollback)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="keyword">this</span>.rollback(forceRollback);</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                <span class="keyword">if</span>(<span class="keyword">this</span>.transaction != <span class="keyword">null</span>) &#123;</span><br><span class="line">                    <span class="keyword">this</span>.transaction.close();</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (SQLException var11) &#123;</span><br><span class="line">            log.warn(<span class="string">"Unexpected exception on closing transaction.  Cause: "</span> + var11);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.transaction = <span class="keyword">null</span>;</span><br><span class="line">            <span class="keyword">this</span>.deferredLoads = <span class="keyword">null</span>;</span><br><span class="line">            <span class="keyword">this</span>.localCache = <span class="keyword">null</span>;</span><br><span class="line">            <span class="keyword">this</span>.localOutputParameterCache = <span class="keyword">null</span>;</span><br><span class="line">            <span class="keyword">this</span>.closed = <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">isClosed</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.closed;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">update</span><span class="params">(MappedStatement ms, Object parameter)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        ErrorContext.instance().resource(ms.getResource()).activity(<span class="string">"executing an update"</span>).object(ms.getId());</span><br><span class="line">        <span class="keyword">if</span>(<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Executor was closed."</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.clearLocalCache();</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>.doUpdate(ms, parameter);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> List&lt;BatchResult&gt; <span class="title">flushStatements</span><span class="params">()</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.flushStatements(<span class="keyword">false</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> List&lt;BatchResult&gt; <span class="title">flushStatements</span><span class="params">(<span class="keyword">boolean</span> isRollBack)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Executor was closed."</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>.doFlushStatements(isRollBack);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        BoundSql boundSql = ms.getBoundSql(parameter);</span><br><span class="line">        CacheKey key = <span class="keyword">this</span>.createCacheKey(ms, parameter, rowBounds, boundSql);</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.query(ms, parameter, rowBounds, resultHandler, key, boundSql);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        ErrorContext.instance().resource(ms.getResource()).activity(<span class="string">"executing a query"</span>).object(ms.getId());</span><br><span class="line">        <span class="keyword">if</span>(<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Executor was closed."</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">if</span>(<span class="keyword">this</span>.queryStack == <span class="number">0</span> &amp;&amp; ms.isFlushCacheRequired()) &#123;</span><br><span class="line">                <span class="keyword">this</span>.clearLocalCache();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            List list;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                ++<span class="keyword">this</span>.queryStack;</span><br><span class="line">                list = resultHandler == <span class="keyword">null</span>?(List)<span class="keyword">this</span>.localCache.getObject(key):<span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">if</span>(list != <span class="keyword">null</span>) &#123;</span><br><span class="line">                    <span class="keyword">this</span>.handleLocallyCachedOutputParameters(ms, key, parameter, boundSql);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    list = <span class="keyword">this</span>.queryFromDatabase(ms, parameter, rowBounds, resultHandler, key, boundSql);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                --<span class="keyword">this</span>.queryStack;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span>(<span class="keyword">this</span>.queryStack == <span class="number">0</span>) &#123;</span><br><span class="line">                Iterator i$ = <span class="keyword">this</span>.deferredLoads.iterator();</span><br><span class="line"></span><br><span class="line">                <span class="keyword">while</span>(i$.hasNext()) &#123;</span><br><span class="line">                    BaseExecutor.DeferredLoad deferredLoad = (BaseExecutor.DeferredLoad)i$.next();</span><br><span class="line">                    deferredLoad.load();</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">this</span>.deferredLoads.clear();</span><br><span class="line">                <span class="keyword">if</span>(<span class="keyword">this</span>.configuration.getLocalCacheScope() == LocalCacheScope.STATEMENT) &#123;</span><br><span class="line">                    <span class="keyword">this</span>.clearLocalCache();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">return</span> list;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">deferLoad</span><span class="params">(MappedStatement ms, MetaObject resultObject, String property, CacheKey key, Class&lt;?&gt; targetType)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Executor was closed."</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            BaseExecutor.DeferredLoad deferredLoad = <span class="keyword">new</span> BaseExecutor.DeferredLoad(resultObject, property, key, <span class="keyword">this</span>.localCache, <span class="keyword">this</span>.configuration, targetType);</span><br><span class="line">            <span class="keyword">if</span>(deferredLoad.canLoad()) &#123;</span><br><span class="line">                deferredLoad.load();</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="keyword">this</span>.deferredLoads.add(<span class="keyword">new</span> BaseExecutor.DeferredLoad(resultObject, property, key, <span class="keyword">this</span>.localCache, <span class="keyword">this</span>.configuration, targetType));</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> CacheKey <span class="title">createCacheKey</span><span class="params">(MappedStatement ms, Object parameterObject, RowBounds rowBounds, BoundSql boundSql)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Executor was closed."</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            CacheKey cacheKey = <span class="keyword">new</span> CacheKey();</span><br><span class="line">            cacheKey.update(ms.getId());</span><br><span class="line">            cacheKey.update(Integer.valueOf(rowBounds.getOffset()));</span><br><span class="line">            cacheKey.update(Integer.valueOf(rowBounds.getLimit()));</span><br><span class="line">            cacheKey.update(boundSql.getSql());</span><br><span class="line">            List&lt;ParameterMapping&gt; parameterMappings = boundSql.getParameterMappings();</span><br><span class="line">            TypeHandlerRegistry typeHandlerRegistry = ms.getConfiguration().getTypeHandlerRegistry();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; parameterMappings.size(); ++i) &#123;</span><br><span class="line">                ParameterMapping parameterMapping = (ParameterMapping)parameterMappings.get(i);</span><br><span class="line">                <span class="keyword">if</span>(parameterMapping.getMode() != ParameterMode.OUT) &#123;</span><br><span class="line">                    String propertyName = parameterMapping.getProperty();</span><br><span class="line">                    Object value;</span><br><span class="line">                    <span class="keyword">if</span>(boundSql.hasAdditionalParameter(propertyName)) &#123;</span><br><span class="line">                        value = boundSql.getAdditionalParameter(propertyName);</span><br><span class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span>(parameterObject == <span class="keyword">null</span>) &#123;</span><br><span class="line">                        value = <span class="keyword">null</span>;</span><br><span class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span>(typeHandlerRegistry.hasTypeHandler(parameterObject.getClass())) &#123;</span><br><span class="line">                        value = parameterObject;</span><br><span class="line">                    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                        MetaObject metaObject = <span class="keyword">this</span>.configuration.newMetaObject(parameterObject);</span><br><span class="line">                        value = metaObject.getValue(propertyName);</span><br><span class="line">                    &#125;</span><br><span class="line"></span><br><span class="line">                    cacheKey.update(value);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span>(<span class="keyword">this</span>.configuration.getEnvironment() != <span class="keyword">null</span>) &#123;</span><br><span class="line">                cacheKey.update(<span class="keyword">this</span>.configuration.getEnvironment().getId());</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">return</span> cacheKey;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">isCached</span><span class="params">(MappedStatement ms, CacheKey key)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.localCache.getObject(key) != <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">commit</span><span class="params">(<span class="keyword">boolean</span> required)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Cannot commit, transaction is already closed"</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.clearLocalCache();</span><br><span class="line">            <span class="keyword">this</span>.flushStatements();</span><br><span class="line">            <span class="keyword">if</span>(required) &#123;</span><br><span class="line">                <span class="keyword">this</span>.transaction.commit();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">rollback</span><span class="params">(<span class="keyword">boolean</span> required)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(!<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="keyword">this</span>.clearLocalCache();</span><br><span class="line">                <span class="keyword">this</span>.flushStatements(<span class="keyword">true</span>);</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                <span class="keyword">if</span>(required) &#123;</span><br><span class="line">                    <span class="keyword">this</span>.transaction.rollback();</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">clearLocalCache</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(!<span class="keyword">this</span>.closed) &#123;</span><br><span class="line">            <span class="keyword">this</span>.localCache.clear();</span><br><span class="line">            <span class="keyword">this</span>.localOutputParameterCache.clear();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">abstract</span> <span class="keyword">int</span> <span class="title">doUpdate</span><span class="params">(MappedStatement var1, Object var2)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">abstract</span> List&lt;BatchResult&gt; <span class="title">doFlushStatements</span><span class="params">(<span class="keyword">boolean</span> var1)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">abstract</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">doQuery</span><span class="params">(MappedStatement var1, Object var2, RowBounds var3, ResultHandler var4, BoundSql var5)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">closeStatement</span><span class="params">(Statement statement)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(statement != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                statement.close();</span><br><span class="line">            &#125; <span class="keyword">catch</span> (SQLException var3) &#123;</span><br><span class="line">                ;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">handleLocallyCachedOutputParameters</span><span class="params">(MappedStatement ms, CacheKey key, Object parameter, BoundSql boundSql)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(ms.getStatementType() == StatementType.CALLABLE) &#123;</span><br><span class="line">            Object cachedParameter = <span class="keyword">this</span>.localOutputParameterCache.getObject(key);</span><br><span class="line">            <span class="keyword">if</span>(cachedParameter != <span class="keyword">null</span> &amp;&amp; parameter != <span class="keyword">null</span>) &#123;</span><br><span class="line">                MetaObject metaCachedParameter = <span class="keyword">this</span>.configuration.newMetaObject(cachedParameter);</span><br><span class="line">                MetaObject metaParameter = <span class="keyword">this</span>.configuration.newMetaObject(parameter);</span><br><span class="line">                Iterator i$ = boundSql.getParameterMappings().iterator();</span><br><span class="line"></span><br><span class="line">                <span class="keyword">while</span>(i$.hasNext()) &#123;</span><br><span class="line">                    ParameterMapping parameterMapping = (ParameterMapping)i$.next();</span><br><span class="line">                    <span class="keyword">if</span>(parameterMapping.getMode() != ParameterMode.IN) &#123;</span><br><span class="line">                        String parameterName = parameterMapping.getProperty();</span><br><span class="line">                        Object cachedValue = metaCachedParameter.getValue(parameterName);</span><br><span class="line">                        metaParameter.setValue(parameterName, cachedValue);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">queryFromDatabase</span><span class="params">(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey key, BoundSql boundSql)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.localCache.putObject(key, ExecutionPlaceholder.EXECUTION_PLACEHOLDER);</span><br><span class="line"></span><br><span class="line">        List list;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            list = <span class="keyword">this</span>.doQuery(ms, parameter, rowBounds, resultHandler, boundSql);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.localCache.removeObject(key);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">this</span>.localCache.putObject(key, list);</span><br><span class="line">        <span class="keyword">if</span>(ms.getStatementType() == StatementType.CALLABLE) &#123;</span><br><span class="line">            <span class="keyword">this</span>.localOutputParameterCache.putObject(key, parameter);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> list;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> Connection <span class="title">getConnection</span><span class="params">(Log statementLog)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Connection connection = <span class="keyword">this</span>.transaction.getConnection();</span><br><span class="line">        <span class="keyword">return</span> statementLog.isDebugEnabled()?ConnectionLogger.newInstance(connection, statementLog, <span class="keyword">this</span>.queryStack):connection;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setExecutorWrapper</span><span class="params">(Executor wrapper)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.wrapper = wrapper;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">DeferredLoad</span> </span>&#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> MetaObject resultObject;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> String property;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> Class&lt;?&gt; targetType;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> CacheKey key;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> PerpetualCache localCache;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> ObjectFactory objectFactory;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> ResultExtractor resultExtractor;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">DeferredLoad</span><span class="params">(MetaObject resultObject, String property, CacheKey key, PerpetualCache localCache, Configuration configuration, Class&lt;?&gt; targetType)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.resultObject = resultObject;</span><br><span class="line">            <span class="keyword">this</span>.property = property;</span><br><span class="line">            <span class="keyword">this</span>.key = key;</span><br><span class="line">            <span class="keyword">this</span>.localCache = localCache;</span><br><span class="line">            <span class="keyword">this</span>.objectFactory = configuration.getObjectFactory();</span><br><span class="line">            <span class="keyword">this</span>.resultExtractor = <span class="keyword">new</span> ResultExtractor(configuration, <span class="keyword">this</span>.objectFactory);</span><br><span class="line">            <span class="keyword">this</span>.targetType = targetType;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">canLoad</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>.localCache.getObject(<span class="keyword">this</span>.key) != <span class="keyword">null</span> &amp;&amp; <span class="keyword">this</span>.localCache.getObject(<span class="keyword">this</span>.key) != ExecutionPlaceholder.EXECUTION_PLACEHOLDER;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">load</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            List&lt;Object&gt; list = (List)<span class="keyword">this</span>.localCache.getObject(<span class="keyword">this</span>.key);</span><br><span class="line">            Object value = <span class="keyword">this</span>.resultExtractor.extractObjectFromList(list, <span class="keyword">this</span>.targetType);</span><br><span class="line">            <span class="keyword">this</span>.resultObject.setValue(<span class="keyword">this</span>.property, value);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>和查询，更新有关的方法主要是update(),query()。但最终实现的doUpdate()和doQuery()是由子类完成的。看看包含的字段：</p>
+<blockquote>
+<p>private static final Log log = LogFactory.getLog(BaseExecutor.class);<br>    protected Transaction transaction;<br>    protected Executor wrapper;<br>    protected ConcurrentLinkedQueue&lt;BaseExecutor.DeferredLoad&gt; deferredLoads;<br>    protected PerpetualCache localCache;<br>    protected PerpetualCache localOutputParameterCache;<br>    protected Configuration configuration;<br>    protected int queryStack = 0;<br>    private boolean closed;</p>
+</blockquote>
+<p>localCache是一级缓存，transaction是事务管理，Executor对事务的管理最后还是交给JDBC，这里只是一个封装。可以看到，除了更新查询基本操作，BaseExecutor还包含了对事务的管理，以及对一级缓存的管理。</p>
+<h1 id="SimpleExecutor"><a href="#SimpleExecutor" class="headerlink" title="SimpleExecutor"></a>SimpleExecutor</h1><p>子类只需要实现三个函数即可：<code>doUpdate()</code>,<code>doFlushStatements()</code>,<code>doQuery()</code>。首先看看SimpleExecutor的实现：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SimpleExecutor</span> <span class="keyword">extends</span> <span class="title">BaseExecutor</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">SimpleExecutor</span><span class="params">(Configuration configuration, Transaction transaction)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(configuration, transaction);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">doUpdate</span><span class="params">(MappedStatement ms, Object parameter)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Statement stmt = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> var6;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Configuration configuration = ms.getConfiguration();</span><br><span class="line">            StatementHandler handler = configuration.newStatementHandler(<span class="keyword">this</span>, ms, parameter, RowBounds.DEFAULT, (ResultHandler)<span class="keyword">null</span>, (BoundSql)<span class="keyword">null</span>);</span><br><span class="line">            stmt = <span class="keyword">this</span>.prepareStatement(handler, ms.getStatementLog());</span><br><span class="line">            var6 = handler.update(stmt);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.closeStatement(stmt);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> var6;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">doQuery</span><span class="params">(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Statement stmt = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        List var9;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Configuration configuration = ms.getConfiguration();</span><br><span class="line">            StatementHandler handler = configuration.newStatementHandler(<span class="keyword">this</span>.wrapper, ms, parameter, rowBounds, resultHandler, boundSql);</span><br><span class="line">            stmt = <span class="keyword">this</span>.prepareStatement(handler, ms.getStatementLog());</span><br><span class="line">            var9 = handler.query(stmt, resultHandler);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.closeStatement(stmt);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> var9;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> List&lt;BatchResult&gt; <span class="title">doFlushStatements</span><span class="params">(<span class="keyword">boolean</span> isRollback)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> Collections.emptyList();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Statement <span class="title">prepareStatement</span><span class="params">(StatementHandler handler, Log statementLog)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Connection connection = <span class="keyword">this</span>.getConnection(statementLog);</span><br><span class="line">        Statement stmt = handler.prepare(connection);</span><br><span class="line">        handler.parameterize(stmt);</span><br><span class="line">        <span class="keyword">return</span> stmt;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>由此可知，每执行一次update或select，就开启一个Statement对象，用完立刻关闭Statement对象。</p>
+<h1 id="ReuseExecutor"><a href="#ReuseExecutor" class="headerlink" title="ReuseExecutor"></a>ReuseExecutor</h1><p> ReuseExecutor，顾名思义，是可以重用的Executor。它重用的是Statement对象，它会在内部利用一个Map把创建的Statement都缓存起来，每次在执行一条SQL语句时，它都会去判断之前是否存在基于该SQL缓存的Statement对象，存在而且之前缓存的Statement对象对应的Connection还没有关闭的时候就继续用之前的Statement对象，否则将创建一个新的Statement对象，并将其缓存起来。因为每一个新的SqlSession都有一个新的Executor对象，所以我们缓存在ReuseExecutor上的Statement的作用域是同一个SqlSession</p>
+<p>源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ReuseExecutor</span> <span class="keyword">extends</span> <span class="title">BaseExecutor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Map&lt;String, Statement&gt; statementMap = <span class="keyword">new</span> HashMap();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">ReuseExecutor</span><span class="params">(Configuration configuration, Transaction transaction)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(configuration, transaction);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">doUpdate</span><span class="params">(MappedStatement ms, Object parameter)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Configuration configuration = ms.getConfiguration();</span><br><span class="line">        StatementHandler handler = configuration.newStatementHandler(<span class="keyword">this</span>, ms, parameter, RowBounds.DEFAULT, (ResultHandler)<span class="keyword">null</span>, (BoundSql)<span class="keyword">null</span>);</span><br><span class="line">        Statement stmt = <span class="keyword">this</span>.prepareStatement(handler, ms.getStatementLog());</span><br><span class="line">        <span class="keyword">return</span> handler.update(stmt);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">doQuery</span><span class="params">(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Configuration configuration = ms.getConfiguration();</span><br><span class="line">        StatementHandler handler = configuration.newStatementHandler(<span class="keyword">this</span>.wrapper, ms, parameter, rowBounds, resultHandler, boundSql);</span><br><span class="line">        Statement stmt = <span class="keyword">this</span>.prepareStatement(handler, ms.getStatementLog());</span><br><span class="line">        <span class="keyword">return</span> handler.query(stmt, resultHandler);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> List&lt;BatchResult&gt; <span class="title">doFlushStatements</span><span class="params">(<span class="keyword">boolean</span> isRollback)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Iterator i$ = <span class="keyword">this</span>.statementMap.values().iterator();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span>(i$.hasNext()) &#123;</span><br><span class="line">            Statement stmt = (Statement)i$.next();</span><br><span class="line">            <span class="keyword">this</span>.closeStatement(stmt);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">this</span>.statementMap.clear();</span><br><span class="line">        <span class="keyword">return</span> Collections.emptyList();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Statement <span class="title">prepareStatement</span><span class="params">(StatementHandler handler, Log statementLog)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        BoundSql boundSql = handler.getBoundSql();</span><br><span class="line">        String sql = boundSql.getSql();</span><br><span class="line">        Statement stmt;</span><br><span class="line">        <span class="keyword">if</span>(<span class="keyword">this</span>.hasStatementFor(sql)) &#123;</span><br><span class="line">            stmt = <span class="keyword">this</span>.getStatement(sql);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            Connection connection = <span class="keyword">this</span>.getConnection(statementLog);</span><br><span class="line">            stmt = handler.prepare(connection);</span><br><span class="line">            <span class="keyword">this</span>.putStatement(sql, stmt);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        handler.parameterize(stmt);</span><br><span class="line">        <span class="keyword">return</span> stmt;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">hasStatementFor</span><span class="params">(String sql)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>.statementMap.keySet().contains(sql) &amp;&amp; !((Statement)<span class="keyword">this</span>.statementMap.get(sql)).getConnection().isClosed();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (SQLException var3) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Statement <span class="title">getStatement</span><span class="params">(String s)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> (Statement)<span class="keyword">this</span>.statementMap.get(s);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">putStatement</span><span class="params">(String sql, Statement stmt)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.statementMap.put(sql, stmt);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在prepareStatement()方法里我们可以看到，相比于SimpleExecutor，这里会首先在statementMap中查找是否有可用的Statement，并且Connection没有关闭，如果有，则继续使用这个Statement，否则就和SimpleExecutor一样。</p>
+<h1 id="BatchExecutor"><a href="#BatchExecutor" class="headerlink" title="BatchExecutor"></a>BatchExecutor</h1><p>执行update（没有select，JDBC批处理不支持select），将所有sql都添加到批处理中（addBatch()），等待统一执行（executeBatch()），它缓存了多个Statement对象，每个Statement对象都是addBatch()完毕后，等待逐一执行executeBatch()批处理的。<br>源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">BatchExecutor</span> <span class="keyword">extends</span> <span class="title">BaseExecutor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> BATCH_UPDATE_RETURN_VALUE = -<span class="number">2147482646</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> List&lt;Statement&gt; statementList = <span class="keyword">new</span> ArrayList();</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> List&lt;BatchResult&gt; batchResultList = <span class="keyword">new</span> ArrayList();</span><br><span class="line">    <span class="keyword">private</span> String currentSql;</span><br><span class="line">    <span class="keyword">private</span> MappedStatement currentStatement;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">BatchExecutor</span><span class="params">(Configuration configuration, Transaction transaction)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(configuration, transaction);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">doUpdate</span><span class="params">(MappedStatement ms, Object parameterObject)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Configuration configuration = ms.getConfiguration();</span><br><span class="line">        StatementHandler handler = configuration.newStatementHandler(<span class="keyword">this</span>, ms, parameterObject, RowBounds.DEFAULT, (ResultHandler)<span class="keyword">null</span>, (BoundSql)<span class="keyword">null</span>);</span><br><span class="line">        BoundSql boundSql = handler.getBoundSql();</span><br><span class="line">        String sql = boundSql.getSql();</span><br><span class="line">        Statement stmt;</span><br><span class="line">        <span class="keyword">if</span>(sql.equals(<span class="keyword">this</span>.currentSql) &amp;&amp; ms.equals(<span class="keyword">this</span>.currentStatement)) &#123;</span><br><span class="line">            <span class="keyword">int</span> last = <span class="keyword">this</span>.statementList.size() - <span class="number">1</span>;</span><br><span class="line">            stmt = (Statement)<span class="keyword">this</span>.statementList.get(last);</span><br><span class="line">            handler.parameterize(stmt);</span><br><span class="line">            BatchResult batchResult = (BatchResult)<span class="keyword">this</span>.batchResultList.get(last);</span><br><span class="line">            batchResult.addParameterObject(parameterObject);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            Connection connection = <span class="keyword">this</span>.getConnection(ms.getStatementLog());</span><br><span class="line">            stmt = handler.prepare(connection);</span><br><span class="line">            handler.parameterize(stmt);</span><br><span class="line">            <span class="keyword">this</span>.currentSql = sql;</span><br><span class="line">            <span class="keyword">this</span>.currentStatement = ms;</span><br><span class="line">            <span class="keyword">this</span>.statementList.add(stmt);</span><br><span class="line">            <span class="keyword">this</span>.batchResultList.add(<span class="keyword">new</span> BatchResult(ms, sql, parameterObject));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        handler.batch(stmt);</span><br><span class="line">        <span class="keyword">return</span> -<span class="number">2147482646</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">doQuery</span><span class="params">(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler, BoundSql boundSql)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        Statement stmt = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        List var10;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.flushStatements();</span><br><span class="line">            Configuration configuration = ms.getConfiguration();</span><br><span class="line">            StatementHandler handler = configuration.newStatementHandler(<span class="keyword">this</span>.wrapper, ms, parameterObject, rowBounds, resultHandler, boundSql);</span><br><span class="line">            Connection connection = <span class="keyword">this</span>.getConnection(ms.getStatementLog());</span><br><span class="line">            stmt = handler.prepare(connection);</span><br><span class="line">            handler.parameterize(stmt);</span><br><span class="line">            var10 = handler.query(stmt, resultHandler);</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.closeStatement(stmt);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> var10;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> List&lt;BatchResult&gt; <span class="title">doFlushStatements</span><span class="params">(<span class="keyword">boolean</span> isRollback)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        <span class="keyword">boolean</span> var17 = <span class="keyword">false</span>;</span><br><span class="line"></span><br><span class="line">        Statement stmt;</span><br><span class="line">        List var21;</span><br><span class="line">        Iterator i$;</span><br><span class="line">        label168: &#123;</span><br><span class="line">            ArrayList var20;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                var17 = <span class="keyword">true</span>;</span><br><span class="line">                ArrayList results = <span class="keyword">new</span> ArrayList();</span><br><span class="line">                <span class="keyword">if</span>(isRollback) &#123;</span><br><span class="line">                    var21 = Collections.emptyList();</span><br><span class="line">                    var17 = <span class="keyword">false</span>;</span><br><span class="line">                    <span class="keyword">break</span> label168;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">int</span> i = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">for</span>(<span class="keyword">int</span> n = <span class="keyword">this</span>.statementList.size(); i &lt; n; ++i) &#123;</span><br><span class="line">                    stmt = (Statement)<span class="keyword">this</span>.statementList.get(i);</span><br><span class="line">                    BatchResult batchResult = (BatchResult)<span class="keyword">this</span>.batchResultList.get(i);</span><br><span class="line"></span><br><span class="line">                    <span class="keyword">try</span> &#123;</span><br><span class="line">                        batchResult.setUpdateCounts(stmt.executeBatch());</span><br><span class="line">                        MappedStatement ms = batchResult.getMappedStatement();</span><br><span class="line">                        List&lt;Object&gt; parameterObjects = batchResult.getParameterObjects();</span><br><span class="line">                        KeyGenerator keyGenerator = ms.getKeyGenerator();</span><br><span class="line">                        <span class="keyword">if</span>(Jdbc3KeyGenerator.class.equals(keyGenerator.getClass())) &#123;</span><br><span class="line">                            Jdbc3KeyGenerator jdbc3KeyGenerator = (Jdbc3KeyGenerator)keyGenerator;</span><br><span class="line">                            jdbc3KeyGenerator.processBatch(ms, stmt, parameterObjects);</span><br><span class="line">                        &#125; <span class="keyword">else</span> <span class="keyword">if</span>(!NoKeyGenerator.class.equals(keyGenerator.getClass())) &#123;</span><br><span class="line">                            Iterator i$ = parameterObjects.iterator();</span><br><span class="line"></span><br><span class="line">                            <span class="keyword">while</span>(i$.hasNext()) &#123;</span><br><span class="line">                                Object parameter = i$.next();</span><br><span class="line">                                keyGenerator.processAfter(<span class="keyword">this</span>, ms, stmt, parameter);</span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125; <span class="keyword">catch</span> (BatchUpdateException var18) &#123;</span><br><span class="line">                        StringBuilder message = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">                        message.append(batchResult.getMappedStatement().getId()).append(<span class="string">" (batch index #"</span>).append(i + <span class="number">1</span>).append(<span class="string">")"</span>).append(<span class="string">" failed."</span>);</span><br><span class="line">                        <span class="keyword">if</span>(i &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                            message.append(<span class="string">" "</span>).append(i).append(<span class="string">" prior sub executor(s) completed successfully, but will be rolled back."</span>);</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        <span class="keyword">throw</span> <span class="keyword">new</span> BatchExecutorException(message.toString(), var18, results, batchResult);</span><br><span class="line">                    &#125;</span><br><span class="line"></span><br><span class="line">                    results.add(batchResult);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                var20 = results;</span><br><span class="line">                var17 = <span class="keyword">false</span>;</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                <span class="keyword">if</span>(var17) &#123;</span><br><span class="line">                    Iterator i$ = <span class="keyword">this</span>.statementList.iterator();</span><br><span class="line"></span><br><span class="line">                    <span class="keyword">while</span>(i$.hasNext()) &#123;</span><br><span class="line">                        Statement stmt = (Statement)i$.next();</span><br><span class="line">                        <span class="keyword">this</span>.closeStatement(stmt);</span><br><span class="line">                    &#125;</span><br><span class="line"></span><br><span class="line">                    <span class="keyword">this</span>.currentSql = <span class="keyword">null</span>;</span><br><span class="line">                    <span class="keyword">this</span>.statementList.clear();</span><br><span class="line">                    <span class="keyword">this</span>.batchResultList.clear();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            i$ = <span class="keyword">this</span>.statementList.iterator();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">while</span>(i$.hasNext()) &#123;</span><br><span class="line">                stmt = (Statement)i$.next();</span><br><span class="line">                <span class="keyword">this</span>.closeStatement(stmt);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">this</span>.currentSql = <span class="keyword">null</span>;</span><br><span class="line">            <span class="keyword">this</span>.statementList.clear();</span><br><span class="line">            <span class="keyword">this</span>.batchResultList.clear();</span><br><span class="line">            <span class="keyword">return</span> var20;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        i$ = <span class="keyword">this</span>.statementList.iterator();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span>(i$.hasNext()) &#123;</span><br><span class="line">            stmt = (Statement)i$.next();</span><br><span class="line">            <span class="keyword">this</span>.closeStatement(stmt);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">this</span>.currentSql = <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">this</span>.statementList.clear();</span><br><span class="line">        <span class="keyword">this</span>.batchResultList.clear();</span><br><span class="line">        <span class="keyword">return</span> var21;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>有个缺陷就是无法获取update、delete返回的行数,返回的是一个负值。</p>
+<h1 id="结尾"><a href="#结尾" class="headerlink" title="结尾"></a>结尾</h1><p>写的有点粗糙，有些点没有分析到，比如flushStatements()函数，其实作用也很简单，就是清理掉保存的Statement，因为在BatchExecutor和ReuseExecutor是持有Statement对象的，所以需要清理。还有就是批量查询，主要还是交给JDBC的批量操作，所以这一块也没具体分析。之后学习完jdbc源码后再补上。</p>
+<p>最后感谢我滴小宝贝@677777，你是我滴动力！</p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Mybatis/" rel="tag"># Mybatis</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/11/15/MyBatis一次select查询流程.html" rel="next" title="MyBatis一次select查询流程">
+                <i class="fa fa-chevron-left"></i> MyBatis一次select查询流程
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC80MDkwNi8xNzQzMQ=="></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/jiaao.jpg" alt="贾傲">
+            
+              <p class="site-author-name" itemprop="name">贾傲</p>
+              <p class="site-description motion-element" itemprop="description">关于学习，生活</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">4</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#写在之前"><span class="nav-number">1.</span> <span class="nav-text">写在之前</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Executor接口"><span class="nav-number">2.</span> <span class="nav-text">Executor接口</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Executor的生成"><span class="nav-number">3.</span> <span class="nav-text">Executor的生成</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BaseExecutor"><span class="nav-number">4.</span> <span class="nav-text">BaseExecutor</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SimpleExecutor"><span class="nav-number">5.</span> <span class="nav-text">SimpleExecutor</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#ReuseExecutor"><span class="nav-number">6.</span> <span class="nav-text">ReuseExecutor</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BatchExecutor"><span class="nav-number">7.</span> <span class="nav-text">BatchExecutor</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#结尾"><span class="nav-number">8.</span> <span class="nav-text">结尾</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贾傲</span>
+
+  
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> v6.5.0</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv" title="总访客量">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="site-pv" title="总访问量">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+      <div>
+        <!-- Go to www.addthis.com/dashboard to customize your tools -->
+<div class="addthis_inline_share_toolbox">
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-5be52b92832a63b5" async="async"></script>
+</div>
+
+      </div>
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.5.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+    <script type="text/javascript">
+      window.livereOptions = {
+        refer: '2018/11/19/MyBatis-Executor接口实现.html'
+      };
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
