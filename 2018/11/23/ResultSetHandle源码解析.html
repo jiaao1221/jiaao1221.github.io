@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="前言这个部分感觉是MyBatis里比较复杂的一块，也是很重要的一块，如果弄清楚了，那么对复杂映射背后的原理理解将会更加深刻。我们还是延用之前搭的demo继续代码调试。 ResultSetHandle接口先看看接口的源码：12345   public interface ResultSetHandler &amp;#123;    &amp;lt;E&amp;gt; List&amp;lt;E&amp;gt; handleResultSe">
+<meta name="keywords" content="Mybatis">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ResultSetHandle源码解析">
+<meta property="og:url" content="http://jiaao67.xn--6qq986b3xl/2018/11/23/ResultSetHandle源码解析.html">
+<meta property="og:site_name" content="jiaao&#39;s blog">
+<meta property="og:description" content="前言这个部分感觉是MyBatis里比较复杂的一块，也是很重要的一块，如果弄清楚了，那么对复杂映射背后的原理理解将会更加深刻。我们还是延用之前搭的demo继续代码调试。 ResultSetHandle接口先看看接口的源码：12345   public interface ResultSetHandler &amp;#123;    &amp;lt;E&amp;gt; List&amp;lt;E&amp;gt; handleResultSe">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2018-11-27T14:21:46.413Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ResultSetHandle源码解析">
+<meta name="twitter:description" content="前言这个部分感觉是MyBatis里比较复杂的一块，也是很重要的一块，如果弄清楚了，那么对复杂映射背后的原理理解将会更加深刻。我们还是延用之前搭的demo继续代码调试。 ResultSetHandle接口先看看接口的源码：12345   public interface ResultSetHandler &amp;#123;    &amp;lt;E&amp;gt; List&amp;lt;E&amp;gt; handleResultSe">
+
+
+
+
+
+
+  <link rel="canonical" href="http://jiaao67.xn--6qq986b3xl/2018/11/23/ResultSetHandle源码解析.html">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>ResultSetHandle源码解析 | jiaao's blog</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">jiaao's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <p class="site-subtitle">Stay Hungry, Stay Foolish</p>
+      
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://jiaao67.xn--6qq986b3xl/2018/11/23/ResultSetHandle源码解析.html">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="贾傲">
+      <meta itemprop="description" content="关于学习，生活">
+      <meta itemprop="image" content="/images/jiaao.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="jiaao's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">ResultSetHandle源码解析
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2018-11-23 11:33:40" itemprop="dateCreated datePublished" datetime="2018-11-23T11:33:40+08:00">2018-11-23</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2018-11-27 22:21:46" itemprop="dateModified" datetime="2018-11-27T22:21:46+08:00">2018-11-27</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/学习笔记/" itemprop="url" rel="index"><span itemprop="name">学习笔记</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon">
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>这个部分感觉是MyBatis里比较复杂的一块，也是很重要的一块，如果弄清楚了，那么对复杂映射背后的原理理解将会更加深刻。<br>我们还是延用之前搭的demo继续代码调试。</p>
+<h1 id="ResultSetHandle接口"><a href="#ResultSetHandle接口" class="headerlink" title="ResultSetHandle接口"></a>ResultSetHandle接口</h1><p>先看看接口的源码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ResultSetHandler</span> </span>&#123;</span><br><span class="line">    &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">handleResultSets</span><span class="params">(Statement var1)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">handleOutputParameters</span><span class="params">(CallableStatement var1)</span> <span class="keyword">throws</span> SQLException</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>只有两个方法。通过传参可以看出来，handleResultSets是处理普通sql语句的操作，handleOutputParameters是处理存储过程的结果。该接口只有一个默认实现：DefaultResultSetHandler，其实现的步骤就是将Statement执行后的结果集，按照Mapper文件中配置的ResultType或ResultMap来封装成对应的对象，最后将封装的对象返回。</p>
+<h1 id="简单映射过程"><a href="#简单映射过程" class="headerlink" title="简单映射过程"></a>简单映射过程</h1><p>我们首先看看简单映射是如何处理结果的。执行UserMapper.selectAllUser，中间的过程之前已经介绍过了：[MyBatis一次select查询流程][1]，直接跳到query()方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> &lt;E&gt; <span class="function">List&lt;E&gt; <span class="title">query</span><span class="params">(Statement statement, ResultHandler resultHandler)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        PreparedStatement ps = (PreparedStatement)statement;</span><br><span class="line">        ps.execute();</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.resultSetHandler.handleResultSets(ps);</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure></p>
+<p>很明显<code>this.resultSetHandler.handleResultSets(ps)</code>就是我们的入口，这里的resultSetHandler实现类就是<br>DefaultResultSetHandler，进入handleResultSets()方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">   <span class="function"><span class="keyword">public</span> List&lt;Object&gt; <span class="title">handleResultSets</span><span class="params">(Statement stmt)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">    ErrorContext.instance().activity(<span class="string">"handling results"</span>).object(<span class="keyword">this</span>.mappedStatement.getId());</span><br><span class="line">    List&lt;Object&gt; multipleResults = <span class="keyword">new</span> ArrayList();</span><br><span class="line">    <span class="keyword">int</span> resultSetCount = <span class="number">0</span>;</span><br><span class="line">    ResultSetWrapper rsw = <span class="keyword">this</span>.getFirstResultSet(stmt);</span><br><span class="line">    List&lt;ResultMap&gt; resultMaps = <span class="keyword">this</span>.mappedStatement.getResultMaps();</span><br><span class="line">    <span class="keyword">int</span> resultMapCount = resultMaps.size();</span><br><span class="line">    <span class="keyword">this</span>.validateResultMapsCount(rsw, resultMapCount);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span>(rsw != <span class="keyword">null</span> &amp;&amp; resultMapCount &gt; resultSetCount) &#123;</span><br><span class="line">        ResultMap resultMap = (ResultMap)resultMaps.get(resultSetCount);</span><br><span class="line">        <span class="keyword">this</span>.handleResultSet(rsw, resultMap, multipleResults, (ResultMapping)<span class="keyword">null</span>);</span><br><span class="line">        rsw = <span class="keyword">this</span>.getNextResultSet(stmt);</span><br><span class="line">        <span class="keyword">this</span>.cleanUpAfterHandlingResultSet();</span><br><span class="line">        ++resultSetCount;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    String[] resultSets = <span class="keyword">this</span>.mappedStatement.getResulSets();</span><br><span class="line">    <span class="keyword">if</span>(resultSets != <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">while</span>(rsw != <span class="keyword">null</span> &amp;&amp; resultSetCount &lt; resultSets.length) &#123;</span><br><span class="line">            ResultMapping parentMapping = (ResultMapping)<span class="keyword">this</span>.nextResultMaps.get(resultSets[resultSetCount]);</span><br><span class="line">            <span class="keyword">if</span>(parentMapping != <span class="keyword">null</span>) &#123;</span><br><span class="line">                String nestedResultMapId = parentMapping.getNestedResultMapId();</span><br><span class="line">                ResultMap resultMap = <span class="keyword">this</span>.configuration.getResultMap(nestedResultMapId);</span><br><span class="line">                <span class="keyword">this</span>.handleResultSet(rsw, resultMap, (List)<span class="keyword">null</span>, parentMapping);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            rsw = <span class="keyword">this</span>.getNextResultSet(stmt);</span><br><span class="line">            <span class="keyword">this</span>.cleanUpAfterHandlingResultSet();</span><br><span class="line">            ++resultSetCount;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>.collapseSingleResultList(multipleResults);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>其中，multipleResults存放结果，因为有可能有多个结果集，所以是list。ResultSetWrapper是对ResultSet的封装。resultMaps存放映射关系。因为这里是简单映射，只有一个resultmap，对应的是User类。validateResultMapsCount()方法是检验合法性。接着进入handleResultSet()方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">handleResultSet</span><span class="params">(ResultSetWrapper rsw, ResultMap resultMap, List&lt;Object&gt; multipleResults, ResultMapping parentMapping)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     <span class="keyword">try</span> &#123;</span><br><span class="line">         <span class="keyword">if</span>(parentMapping != <span class="keyword">null</span>) &#123;</span><br><span class="line">             <span class="keyword">this</span>.handleRowValues(rsw, resultMap, (ResultHandler)<span class="keyword">null</span>, RowBounds.DEFAULT, parentMapping);</span><br><span class="line">         &#125; <span class="keyword">else</span> <span class="keyword">if</span>(<span class="keyword">this</span>.resultHandler == <span class="keyword">null</span>) &#123;</span><br><span class="line">             DefaultResultHandler defaultResultHandler = <span class="keyword">new</span> DefaultResultHandler(<span class="keyword">this</span>.objectFactory);</span><br><span class="line">             <span class="keyword">this</span>.handleRowValues(rsw, resultMap, defaultResultHandler, <span class="keyword">this</span>.rowBounds, (ResultMapping)<span class="keyword">null</span>);</span><br><span class="line">             multipleResults.add(defaultResultHandler.getResultList());</span><br><span class="line">         &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">             <span class="keyword">this</span>.handleRowValues(rsw, resultMap, <span class="keyword">this</span>.resultHandler, <span class="keyword">this</span>.rowBounds, (ResultMapping)<span class="keyword">null</span>);</span><br><span class="line">         &#125;</span><br><span class="line">     &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">         <span class="keyword">this</span>.closeResultSet(rsw.getResultSet());</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>这里会遇到DefaultResultHandler，因为resultHandler为空，所以这里生成了一个DefaultResultHandler对象。首先看一下resultHandler，这个接口是用来处理结果集，如果没有自定义的resultHandler，就会使用DefaultResultHandler，先来看一下它的实现：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ResultHandler</span>&lt;<span class="title">T</span>&gt; </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">handleResult</span><span class="params">(ResultContext&lt;? extends T&gt; var1)</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">   <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">DefaultResultHandler</span> <span class="keyword">implements</span> <span class="title">ResultHandler</span>&lt;<span class="title">Object</span>&gt; </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> List&lt;Object&gt; list;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">DefaultResultHandler</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.list = <span class="keyword">new</span> ArrayList();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">DefaultResultHandler</span><span class="params">(ObjectFactory objectFactory)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.list = (List)objectFactory.create(List.class);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">handleResult</span><span class="params">(ResultContext&lt;? extends Object&gt; context)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.list.add(context.getResultObject());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> List&lt;Object&gt; <span class="title">getResultList</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.list;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>这个接口其实就只需要实现一个方法handleResult(),其中参数ResultContext包含了结果，我们可以对其进行处理。例如DefaultResultHandler的处理方法就是将结果加入到list中,最后加入到multipleResults中。我们也可以自定义resultHandler进行处理。有了ResultHandler，进入handleRowValues()方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">handleRowValues</span><span class="params">(ResultSetWrapper rsw, ResultMap resultMap, ResultHandler&lt;?&gt; resultHandler, RowBounds rowBounds, ResultMapping parentMapping)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     <span class="keyword">if</span>(resultMap.hasNestedResultMaps()) &#123;</span><br><span class="line">         <span class="keyword">this</span>.ensureNoRowBounds();</span><br><span class="line">         <span class="keyword">this</span>.checkResultHandler();</span><br><span class="line">         <span class="keyword">this</span>.handleRowValuesForNestedResultMap(rsw, resultMap, resultHandler, rowBounds, parentMapping);</span><br><span class="line">     &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">         <span class="keyword">this</span>.handleRowValuesForSimpleResultMap(rsw, resultMap, resultHandler, rowBounds, parentMapping);</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>这里做一个判断，如果是有内嵌套的，就执行handleRowValuesForNestedResultMap，否则执行handleRowValuesForSimpleResultMap，这里是简单映射，所以进入handleRowValuesForSimpleResultMap：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">handleRowValuesForSimpleResultMap</span><span class="params">(ResultSetWrapper rsw, ResultMap resultMap, ResultHandler&lt;?&gt; resultHandler, RowBounds rowBounds, ResultMapping parentMapping)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">        DefaultResultContext&lt;Object&gt; resultContext = <span class="keyword">new</span> DefaultResultContext();</span><br><span class="line">        <span class="keyword">this</span>.skipRows(rsw.getResultSet(), rowBounds);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">while</span>(<span class="keyword">this</span>.shouldProcessMoreRows(resultContext, rowBounds) &amp;&amp; rsw.getResultSet().next()) &#123;</span><br><span class="line">            ResultMap discriminatedResultMap = <span class="keyword">this</span>.resolveDiscriminatedResultMap(rsw.getResultSet(), resultMap, (String)<span class="keyword">null</span>);</span><br><span class="line">            Object rowValue = <span class="keyword">this</span>.getRowValue(rsw, discriminatedResultMap);</span><br><span class="line">            <span class="keyword">this</span>.storeObject(resultHandler, resultContext, rowValue, parentMapping, rsw.getResultSet());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<p>所有的结果将存到resultContext中。skipRows()起到翻页的作用。resolveDiscriminatedResultMap如果有定义鉴定器的话选择合适ResultMap。rowValue就是映射后得到的结果，这里是User。storeObject是把结果装载到resultContext，再把resultContext交给resultHandler处理。现在进入getRowValue()方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> Object <span class="title">getRowValue</span><span class="params">(ResultSetWrapper rsw, ResultMap resultMap)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     ResultLoaderMap lazyLoader = <span class="keyword">new</span> ResultLoaderMap();</span><br><span class="line">     Object resultObject = <span class="keyword">this</span>.createResultObject(rsw, resultMap, lazyLoader, (String)<span class="keyword">null</span>);</span><br><span class="line">     <span class="keyword">if</span>(resultObject != <span class="keyword">null</span> &amp;&amp; !<span class="keyword">this</span>.typeHandlerRegistry.hasTypeHandler(resultMap.getType())) &#123;</span><br><span class="line">         MetaObject metaObject = <span class="keyword">this</span>.configuration.newMetaObject(resultObject);</span><br><span class="line">         <span class="keyword">boolean</span> foundValues = !resultMap.getConstructorResultMappings().isEmpty();</span><br><span class="line">         <span class="keyword">if</span>(<span class="keyword">this</span>.shouldApplyAutomaticMappings(resultMap, <span class="keyword">false</span>)) &#123;</span><br><span class="line">             foundValues = <span class="keyword">this</span>.applyAutomaticMappings(rsw, resultMap, metaObject, (String)<span class="keyword">null</span>) || foundValues;</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         foundValues = <span class="keyword">this</span>.applyPropertyMappings(rsw, resultMap, metaObject, lazyLoader, (String)<span class="keyword">null</span>) || foundValues;</span><br><span class="line">         foundValues = lazyLoader.size() &gt; <span class="number">0</span> || foundValues;</span><br><span class="line">         resultObject = foundValues?resultObject:<span class="keyword">null</span>;</span><br><span class="line">         <span class="keyword">return</span> resultObject;</span><br><span class="line">     &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">         <span class="keyword">return</span> resultObject;</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>这里有两个方法比较重要，一个是createResultObject()，通过反射得到User实例，一个是applyAutomaticMappings()，因为在配置文件默认就是自动匹配，会将字段名相同的数据填入。<br>先看createResultObject()：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> Object <span class="title">createResultObject</span><span class="params">(ResultSetWrapper rsw, ResultMap resultMap, ResultLoaderMap lazyLoader, String columnPrefix)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     List&lt;Class&lt;?&gt;&gt; constructorArgTypes = <span class="keyword">new</span> ArrayList();</span><br><span class="line">     List&lt;Object&gt; constructorArgs = <span class="keyword">new</span> ArrayList();</span><br><span class="line">     Object resultObject = <span class="keyword">this</span>.createResultObject(rsw, resultMap, constructorArgTypes, constructorArgs, columnPrefix);</span><br><span class="line">     <span class="keyword">if</span>(resultObject != <span class="keyword">null</span> &amp;&amp; !<span class="keyword">this</span>.typeHandlerRegistry.hasTypeHandler(resultMap.getType())) &#123;</span><br><span class="line">         List&lt;ResultMapping&gt; propertyMappings = resultMap.getPropertyResultMappings();</span><br><span class="line">         Iterator i$ = propertyMappings.iterator();</span><br><span class="line"></span><br><span class="line">         <span class="keyword">while</span>(i$.hasNext()) &#123;</span><br><span class="line">             ResultMapping propertyMapping = (ResultMapping)i$.next();</span><br><span class="line">             <span class="keyword">if</span>(propertyMapping.getNestedQueryId() != <span class="keyword">null</span> &amp;&amp; propertyMapping.isLazy()) &#123;</span><br><span class="line">                 <span class="keyword">return</span> <span class="keyword">this</span>.configuration.getProxyFactory().createProxy(resultObject, lazyLoader, <span class="keyword">this</span>.configuration, <span class="keyword">this</span>.objectFactory, constructorArgTypes, constructorArgs);</span><br><span class="line">             &#125;</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     <span class="keyword">return</span> resultObject;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>这里有两个重要的地方，一个是createResultObject()方法，一个是<code>return this.configuration.getProxyFactory().createProxy(resultObject, lazyLoader, this.configuration, this.objectFactory, constructorArgTypes, constructorArgs);</code>得到懒加载的动态代理对象。这里不讲懒加载的机制，只看createResultObject()方法。constructorArgTypes 和constructorArgs 是如果定义了有参数的构造函数的参数和类型。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> Object <span class="title">createResultObject</span><span class="params">(ResultSetWrapper rsw, ResultMap resultMap, List&lt;Class&lt;?&gt;&gt; constructorArgTypes, List&lt;Object&gt; constructorArgs, String columnPrefix)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     Class&lt;?&gt; resultType = resultMap.getType();</span><br><span class="line">     MetaClass metaType = MetaClass.forClass(resultType, <span class="keyword">this</span>.reflectorFactory);</span><br><span class="line">     List&lt;ResultMapping&gt; constructorMappings = resultMap.getConstructorResultMappings();</span><br><span class="line">     <span class="keyword">if</span>(<span class="keyword">this</span>.typeHandlerRegistry.hasTypeHandler(resultType)) &#123;</span><br><span class="line">         <span class="keyword">return</span> <span class="keyword">this</span>.createPrimitiveResultObject(rsw, resultMap, columnPrefix);</span><br><span class="line">     &#125; <span class="keyword">else</span> <span class="keyword">if</span>(!constructorMappings.isEmpty()) &#123;</span><br><span class="line">         <span class="keyword">return</span> <span class="keyword">this</span>.createParameterizedResultObject(rsw, resultType, constructorMappings, constructorArgTypes, constructorArgs, columnPrefix);</span><br><span class="line">     &#125; <span class="keyword">else</span> <span class="keyword">if</span>(!resultType.isInterface() &amp;&amp; !metaType.hasDefaultConstructor()) &#123;</span><br><span class="line">         <span class="keyword">if</span>(<span class="keyword">this</span>.shouldApplyAutomaticMappings(resultMap, <span class="keyword">false</span>)) &#123;</span><br><span class="line">             <span class="keyword">return</span> <span class="keyword">this</span>.createByConstructorSignature(rsw, resultType, constructorArgTypes, constructorArgs, columnPrefix);</span><br><span class="line">         &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">             <span class="keyword">throw</span> <span class="keyword">new</span> ExecutorException(<span class="string">"Do not know how to create an instance of "</span> + resultType);</span><br><span class="line">         &#125;</span><br><span class="line">     &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">         <span class="keyword">return</span> <span class="keyword">this</span>.objectFactory.create(resultType);</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>这里由于是简单映射，没有定义带参的构造函数，typeHandler等，直接跳到最后<code>this.objectFactory.create(resultType)</code>，通过resultType反射得到User实例。跳出后回到上一层的createResultObject，之后就是懒加载的判断，于是再跳出回到最开始的getRowValue(),开始为User注入属性。<br>进入applyAutomaticMappings():<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">applyAutomaticMappings</span><span class="params">(ResultSetWrapper rsw, ResultMap resultMap, MetaObject metaObject, String columnPrefix)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">     List&lt;String&gt; unmappedColumnNames = rsw.getUnmappedColumnNames(resultMap, columnPrefix);</span><br><span class="line">     <span class="keyword">boolean</span> foundValues = <span class="keyword">false</span>;</span><br><span class="line">     Iterator i$ = unmappedColumnNames.iterator();</span><br><span class="line"></span><br><span class="line">     <span class="keyword">while</span>(<span class="keyword">true</span>) &#123;</span><br><span class="line">         String property;</span><br><span class="line">         Class propertyType;</span><br><span class="line">         Object value;</span><br><span class="line">         <span class="keyword">do</span> &#123;</span><br><span class="line">             String columnName;</span><br><span class="line">             <span class="keyword">do</span> &#123;</span><br><span class="line">                 <span class="keyword">do</span> &#123;</span><br><span class="line">                     <span class="keyword">do</span> &#123;</span><br><span class="line">                         String propertyName;</span><br><span class="line">                         <span class="keyword">while</span>(<span class="keyword">true</span>) &#123;</span><br><span class="line">                             <span class="keyword">if</span>(!i$.hasNext()) &#123;</span><br><span class="line">                                 <span class="keyword">return</span> foundValues;</span><br><span class="line">                             &#125;</span><br><span class="line"></span><br><span class="line">                             columnName = (String)i$.next();</span><br><span class="line">                             propertyName = columnName;</span><br><span class="line">                             <span class="keyword">if</span>(columnPrefix == <span class="keyword">null</span> || columnPrefix.isEmpty()) &#123;</span><br><span class="line">                                 <span class="keyword">break</span>;</span><br><span class="line">                             &#125;</span><br><span class="line"></span><br><span class="line">                             <span class="keyword">if</span>(columnName.toUpperCase(Locale.ENGLISH).startsWith(columnPrefix)) &#123;</span><br><span class="line">                                 propertyName = columnName.substring(columnPrefix.length());</span><br><span class="line">                                 <span class="keyword">break</span>;</span><br><span class="line">                             &#125;</span><br><span class="line">                         &#125;</span><br><span class="line"></span><br><span class="line">                         property = metaObject.findProperty(propertyName, <span class="keyword">this</span>.configuration.isMapUnderscoreToCamelCase());</span><br><span class="line">                     &#125; <span class="keyword">while</span>(property == <span class="keyword">null</span>);</span><br><span class="line">                 &#125; <span class="keyword">while</span>(!metaObject.hasSetter(property));</span><br><span class="line"></span><br><span class="line">                 propertyType = metaObject.getSetterType(property);</span><br><span class="line">             &#125; <span class="keyword">while</span>(!<span class="keyword">this</span>.typeHandlerRegistry.hasTypeHandler(propertyType));</span><br><span class="line"></span><br><span class="line">             TypeHandler&lt;?&gt; typeHandler = rsw.getTypeHandler(propertyType, columnName);</span><br><span class="line">             value = typeHandler.getResult(rsw.getResultSet(), columnName);</span><br><span class="line">         &#125; <span class="keyword">while</span>(value == <span class="keyword">null</span> &amp;&amp; !<span class="keyword">this</span>.configuration.isCallSettersOnNulls());</span><br><span class="line"></span><br><span class="line">         <span class="keyword">if</span>(value != <span class="keyword">null</span> || !propertyType.isPrimitive()) &#123;</span><br><span class="line">             metaObject.setValue(property, value);</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">         foundValues = <span class="keyword">true</span>;</span><br><span class="line">     &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>我们直接看这两句：<br><code>TypeHandler&lt;?&gt; typeHandler = rsw.getTypeHandler(propertyType, columnName);
+value = typeHandler.getResult(rsw.getResultSet(), columnName);</code><br>先得到用来列处理的typeHandler，这个typeHandler可以是自己定义注册的。对于简单地整型，String等就不需要自定义。首先处理的行是ID，这里的typeHandler就是LongtypeHandler,通过getResult得到ID列的值，这里就要深入到JDBC与MyBatis的动态代理，之后再讨论。<br>现在得到value后要把值赋予给User,这里是通过metaObject对User进行赋值。MetaObject是Mybatis提供的一个用于方便、优雅访问对象属性的对象，通过它可以简化代码、不需要try/catch各种reflect异常，同时它支持对JavaBean、Collection、Map三种类型对象的操作。通过metaObject.setValue设置值。一个while循环完之后，这条记录就结束了，一个完整的User实例也生成了。</p>
+<h1 id="结尾"><a href="#结尾" class="headerlink" title="结尾"></a>结尾</h1><p>复杂映射包括一对一，一对多，多对多，其实走的流程和之前差不多，如果某一个resultMap开启了懒加载，则会对结果对象做一个动态代理，将原本的get()/set()方法代理成一个向数据库查询的方法，一旦懒加载执行，之后再次执行就不会向数据库再次提交。<br>[1]: <a href="http://jiaao67.xn--6qq986b3xl/2018/11/15/MyBatis%E4%B8%80%E6%AC%A1select%E6%9F%A5%E8%AF%A2%E6%B5%81%E7%A8%8B.html#more">http://jiaao67.xn--6qq986b3xl/2018/11/15/MyBatis%E4%B8%80%E6%AC%A1select%E6%9F%A5%E8%AF%A2%E6%B5%81%E7%A8%8B.html#more</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Mybatis/" rel="tag"># Mybatis</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/11/19/MyBatis-Executor接口实现.html" rel="next" title="MyBatis Executor接口实现">
+                <i class="fa fa-chevron-left"></i> MyBatis Executor接口实现
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC80MDkwNi8xNzQzMQ=="></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/jiaao.jpg" alt="贾傲">
+            
+              <p class="site-author-name" itemprop="name">贾傲</p>
+              <p class="site-description motion-element" itemprop="description">关于学习，生活</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">5</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#ResultSetHandle接口"><span class="nav-number">2.</span> <span class="nav-text">ResultSetHandle接口</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#简单映射过程"><span class="nav-number">3.</span> <span class="nav-text">简单映射过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#结尾"><span class="nav-number">4.</span> <span class="nav-text">结尾</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贾傲</span>
+
+  
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> v6.5.0</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv" title="总访客量">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="site-pv" title="总访问量">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+      <div>
+        <!-- Go to www.addthis.com/dashboard to customize your tools -->
+<div class="addthis_inline_share_toolbox">
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-5be52b92832a63b5" async="async"></script>
+</div>
+
+      </div>
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.5.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+    <script type="text/javascript">
+      window.livereOptions = {
+        refer: '2018/11/23/ResultSetHandle源码解析.html'
+      };
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
