@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="开始本来是准备直接写源码解析的，但是感觉自己写的太乱了，而且写的东一块西一块，没有啥重点。突然想到之前看到的一本关于tomcat的书，从服务器设计开始讲起，把tomcat的每个模块为什么要这么设计讲的很透彻（虽然自己还是一知半解，逃），那我也试试用这个方法= =。 认证服务认证服务其实很常见，一般的网站登录，简单的，就是输入账号和密码，复杂一点就是扫码，手机验证码等。我们暂时不要想的太复杂，就是一">
+<meta name="keywords" content="Spring-Security">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spring Security 认证原理(一)">
+<meta property="og:url" content="http://jiaao67.xn--6qq986b3xl/2018/12/11/Spring Security 认证原理(一) .html">
+<meta property="og:site_name" content="jiaao&#39;s blog">
+<meta property="og:description" content="开始本来是准备直接写源码解析的，但是感觉自己写的太乱了，而且写的东一块西一块，没有啥重点。突然想到之前看到的一本关于tomcat的书，从服务器设计开始讲起，把tomcat的每个模块为什么要这么设计讲的很透彻（虽然自己还是一知半解，逃），那我也试试用这个方法= =。 认证服务认证服务其实很常见，一般的网站登录，简单的，就是输入账号和密码，复杂一点就是扫码，手机验证码等。我们暂时不要想的太复杂，就是一">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-01-02T16:14:47.148Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Spring Security 认证原理(一)">
+<meta name="twitter:description" content="开始本来是准备直接写源码解析的，但是感觉自己写的太乱了，而且写的东一块西一块，没有啥重点。突然想到之前看到的一本关于tomcat的书，从服务器设计开始讲起，把tomcat的每个模块为什么要这么设计讲的很透彻（虽然自己还是一知半解，逃），那我也试试用这个方法= =。 认证服务认证服务其实很常见，一般的网站登录，简单的，就是输入账号和密码，复杂一点就是扫码，手机验证码等。我们暂时不要想的太复杂，就是一">
+
+
+
+
+
+
+  <link rel="canonical" href="http://jiaao67.xn--6qq986b3xl/2018/12/11/Spring Security 认证原理(一) .html">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Spring Security 认证原理(一) | jiaao's blog</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">jiaao's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <p class="site-subtitle">Stay Hungry, Stay Foolish</p>
+      
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://jiaao67.xn--6qq986b3xl/2018/12/11/Spring Security 认证原理(一) .html">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="贾傲">
+      <meta itemprop="description" content="关于学习，生活">
+      <meta itemprop="image" content="/images/jiaao.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="jiaao's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Spring Security 认证原理(一)
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2018-12-11 22:41:59" itemprop="dateCreated datePublished" datetime="2018-12-11T22:41:59+08:00">2018-12-11</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2019-01-03 00:14:47" itemprop="dateModified" datetime="2019-01-03T00:14:47+08:00">2019-01-03</time>
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/学习笔记/" itemprop="url" rel="index"><span itemprop="name">学习笔记</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon">
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="开始"><a href="#开始" class="headerlink" title="开始"></a>开始</h1><p>本来是准备直接写源码解析的，但是感觉自己写的太乱了，而且写的东一块西一块，没有啥重点。突然想到之前看到的一本关于tomcat的书，从服务器设计开始讲起，把tomcat的每个模块为什么要这么设计讲的很透彻（虽然自己还是一知半解，逃），那我也试试用这个方法= =。</p>
+<h1 id="认证服务"><a href="#认证服务" class="headerlink" title="认证服务"></a>认证服务</h1><p>认证服务其实很常见，一般的网站登录，简单的，就是输入账号和密码，复杂一点就是扫码，手机验证码等。我们暂时不要想的太复杂，就是一个需要账号密码的认证服务应该怎么实现。首先，对每个请求都有对应的凭证，在请求过程中可能要多次用到凭证信息，所以需要一个容器持有凭证，每个请求都有自己的容器。接着就是验证器，用来验证凭证的合法性。最右一个则是鉴权，即每种资源对应不同的权限，即使凭证是合法的的，但不一定拥有申请资源对应的权限，所以还需要鉴权器。所以我们就对凭证，凭证持有容器，验证器，鉴权器分别进行抽象和设计。</p>
+<p>#凭证<br>我们对凭证成一个接口，它需要哪些方法？首先肯定是账号和密码，其次是权限信息，是已经认证还是未认证。在Spring Security是这样实现的：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Authentication</span> <span class="keyword">extends</span> <span class="title">Principal</span>, <span class="title">Serializable</span> </span>&#123;</span><br><span class="line">    Collection&lt;? extends GrantedAuthority&gt; getAuthorities();</span><br><span class="line"></span><br><span class="line">    <span class="function">Object <span class="title">getCredentials</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function">Object <span class="title">getDetails</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function">Object <span class="title">getPrincipal</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">isAuthenticated</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">setAuthenticated</span><span class="params">(<span class="keyword">boolean</span> var1)</span> <span class="keyword">throws</span> IllegalArgumentException</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>Spring Security提供了一个抽象类AbstractAuthenticationToken：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">AbstractAuthenticationToken</span> <span class="keyword">implements</span> <span class="title">Authentication</span>, <span class="title">CredentialsContainer</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Collection&lt;GrantedAuthority&gt; authorities;</span><br><span class="line">    <span class="keyword">private</span> Object details;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">boolean</span> authenticated = <span class="keyword">false</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">AbstractAuthenticationToken</span><span class="params">(Collection&lt;? extends GrantedAuthority&gt; authorities)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(authorities == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">this</span>.authorities = AuthorityUtils.NO_AUTHORITIES;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            Iterator var2 = authorities.iterator();</span><br><span class="line"></span><br><span class="line">            GrantedAuthority a;</span><br><span class="line">            <span class="keyword">do</span> &#123;</span><br><span class="line">                <span class="keyword">if</span>(!var2.hasNext()) &#123;</span><br><span class="line">                    ArrayList&lt;GrantedAuthority&gt; temp = <span class="keyword">new</span> ArrayList(authorities.size());</span><br><span class="line">                    temp.addAll(authorities);</span><br><span class="line">                    <span class="keyword">this</span>.authorities = Collections.unmodifiableList(temp);</span><br><span class="line">                    <span class="keyword">return</span>;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                a = (GrantedAuthority)var2.next();</span><br><span class="line">            &#125; <span class="keyword">while</span>(a != <span class="keyword">null</span>);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Authorities collection cannot contain any null elements"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ......</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>只贴出主要的构造方法和字段，逻辑也非常清晰。默认实现类有好几种，都是针对不同的功能。authorities表示该凭证包含的权限，authenticated 表示该凭证是否被验证，默认是未被验证。</p>
+<p>#安全上下文与持有容器<br>凭证的设计已经差不多了，让我们回到一般的认证场景，当一个请求进来时，首先是看其session中是否包含已认证的信息，如果已经登陆过，只要通过session便可以获得登陆信息而无需重复登录。也就是说，我们需要在session中添加凭证信息，在Spring Security设计中，将用户信息抽象为安全上下文，其中包含了登陆凭证。同时设计了一个SecurityContextRepository，用于将安全上下文存取在session当中。实现如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SecurityContextRepository</span> </span>&#123;</span><br><span class="line">    <span class="function">SecurityContext <span class="title">loadContext</span><span class="params">(HttpRequestResponseHolder var1)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">saveContext</span><span class="params">(SecurityContext var1, HttpServletRequest var2, HttpServletResponse var3)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">boolean</span> <span class="title">containsContext</span><span class="params">(HttpServletRequest var1)</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">HttpSessionSecurityContextRepository</span> <span class="keyword">implements</span> <span class="title">SecurityContextRepository</span> </span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> String SPRING_SECURITY_CONTEXT_KEY = <span class="string">"SPRING_SECURITY_CONTEXT"</span>;</span><br><span class="line">    <span class="keyword">protected</span> <span class="keyword">final</span> Log logger = LogFactory.getLog(<span class="keyword">this</span>.getClass());</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Object contextObject = SecurityContextHolder.createEmptyContext();</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">boolean</span> allowSessionCreation = <span class="keyword">true</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">boolean</span> disableUrlRewriting = <span class="keyword">false</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">boolean</span> isServlet3 = ClassUtils.hasMethod(ServletRequest.class, <span class="string">"startAsync"</span>, <span class="keyword">new</span> Class[<span class="number">0</span>]);</span><br><span class="line">    <span class="keyword">private</span> String springSecurityContextKey = <span class="string">"SPRING_SECURITY_CONTEXT"</span>;</span><br><span class="line">    <span class="keyword">private</span> AuthenticationTrustResolver trustResolver = <span class="keyword">new</span> AuthenticationTrustResolverImpl();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">HttpSessionSecurityContextRepository</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> SecurityContext <span class="title">loadContext</span><span class="params">(HttpRequestResponseHolder requestResponseHolder)</span> </span>&#123;</span><br><span class="line">        HttpServletRequest request = requestResponseHolder.getRequest();</span><br><span class="line">        HttpServletResponse response = requestResponseHolder.getResponse();</span><br><span class="line">        HttpSession httpSession = request.getSession(<span class="keyword">false</span>);</span><br><span class="line">        SecurityContext context = <span class="keyword">this</span>.readSecurityContextFromSession(httpSession);</span><br><span class="line">        <span class="keyword">if</span>(context == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span>(<span class="keyword">this</span>.logger.isDebugEnabled()) &#123;</span><br><span class="line">                <span class="keyword">this</span>.logger.debug(<span class="string">"No SecurityContext was available from the HttpSession: "</span> + httpSession + <span class="string">". A new one will be created."</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            context = <span class="keyword">this</span>.generateNewContext();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        HttpSessionSecurityContextRepository.SaveToSessionResponseWrapper wrappedResponse = <span class="keyword">new</span> HttpSessionSecurityContextRepository.SaveToSessionResponseWrapper(response, request, httpSession != <span class="keyword">null</span>, context);</span><br><span class="line">        requestResponseHolder.setResponse(wrappedResponse);</span><br><span class="line">        <span class="keyword">if</span>(<span class="keyword">this</span>.isServlet3) &#123;</span><br><span class="line">            requestResponseHolder.setRequest(<span class="keyword">new</span> HttpSessionSecurityContextRepository.Servlet3SaveToSessionRequestWrapper(request, wrappedResponse));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> context;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">saveContext</span><span class="params">(SecurityContext context, HttpServletRequest request, HttpServletResponse response)</span> </span>&#123;</span><br><span class="line">        SaveContextOnUpdateOrErrorResponseWrapper responseWrapper = (SaveContextOnUpdateOrErrorResponseWrapper)WebUtils.getNativeResponse(response, SaveContextOnUpdateOrErrorResponseWrapper.class);</span><br><span class="line">        <span class="keyword">if</span>(responseWrapper == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"Cannot invoke saveContext on response "</span> + response + <span class="string">". You must use the HttpRequestResponseHolder.response after invoking loadContext"</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">if</span>(!responseWrapper.isContextSaved()) &#123;</span><br><span class="line">                responseWrapper.saveContext(context);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">containsContext</span><span class="params">(HttpServletRequest request)</span> </span>&#123;</span><br><span class="line">        HttpSession session = request.getSession(<span class="keyword">false</span>);</span><br><span class="line">        <span class="keyword">return</span> session == <span class="keyword">null</span>?<span class="keyword">false</span>:session.getAttribute(<span class="keyword">this</span>.springSecurityContextKey) != <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> SecurityContext <span class="title">readSecurityContextFromSession</span><span class="params">(HttpSession httpSession)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">boolean</span> debug = <span class="keyword">this</span>.logger.isDebugEnabled();</span><br><span class="line">        <span class="keyword">if</span>(httpSession == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span>(debug) &#123;</span><br><span class="line">                <span class="keyword">this</span>.logger.debug(<span class="string">"No HttpSession currently exists"</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            Object contextFromSession = httpSession.getAttribute(<span class="keyword">this</span>.springSecurityContextKey);</span><br><span class="line">            <span class="keyword">if</span>(contextFromSession == <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span>(debug) &#123;</span><br><span class="line">                    <span class="keyword">this</span>.logger.debug(<span class="string">"HttpSession returned null object for SPRING_SECURITY_CONTEXT"</span>);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span>(!(contextFromSession <span class="keyword">instanceof</span> SecurityContext)) &#123;</span><br><span class="line">                <span class="keyword">if</span>(<span class="keyword">this</span>.logger.isWarnEnabled()) &#123;</span><br><span class="line">                    <span class="keyword">this</span>.logger.warn(<span class="keyword">this</span>.springSecurityContextKey + <span class="string">" did not contain a SecurityContext but contained: '"</span> + contextFromSession + <span class="string">"'; are you improperly modifying the HttpSession directly (you should always use SecurityContextHolder) or using the HttpSession attribute reserved for this class?"</span>);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="keyword">if</span>(debug) &#123;</span><br><span class="line">                    <span class="keyword">this</span>.logger.debug(<span class="string">"Obtained a valid SecurityContext from "</span> + <span class="keyword">this</span>.springSecurityContextKey + <span class="string">": '"</span> + contextFromSession + <span class="string">"'"</span>);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">return</span> (SecurityContext)contextFromSession;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ....</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<p>  通过session可以保存登陆状态，如果再次访问则可以取出安全上下文。当是首次访问时，session中并没有登陆状态，则将创建新的内容为空的安全上下文。loadContext函数和saveContext函数正是这些功能的实现。<br>安全上下文除了保存在session中，同时也被SecurityContextHolder持有。SecurityContext中含有当前正在访问系统的用户的详细信息。默认情况下，SecurityContextHolder将使用ThreadLocal来保存SecurityContext，这也就意味着在处于同一线程中的方法中我们可以从ThreadLocal中获取到当前的SecurityContext。因为线程池的原因，如果我们每次在请求完成后都将ThreadLocal进行清除的话，那么我们把SecurityContext存放在ThreadLocal中还是比较安全的。这些工作Spring    Security已经自动为我们做了，即在每一次request结束后都将清除当前线程的ThreadLocal。<br>  SecurityContextHolder中定义了一系列的静态方法，而这些静态方法内部逻辑基本上都是通过SecurityContextHolder持有的SecurityContextHolderStrategy来实现的，如getContext()、setContext()、clearContext()等。而默认使用的strategy就是基于ThreadLocal的ThreadLocalSecurityContextHolderStrategy。另外，Spring Security还提供了两种类型的strategy实现，GlobalSecurityContextHolderStrategy和InheritableThreadLocalSecurityContextHolderStrategy，前者表示全局使用同一个SecurityContext，如C/S结构的客户端；后者使用InheritableThreadLocal来存放SecurityContext，即子线程可以使用父线程中存放的变量。<br>  一般而言，我们使用默认的strategy就可以了，但是如果要改变默认的strategy，Spring Security为我们提供了两种方法，这两种方式都是通过改变strategyName来实现的。SecurityContextHolder中为三种不同类型的strategy分别命名为MODE_THREADLOCAL、MODE_INHERITABLETHREADLOCAL和MODE_GLOBAL。第一种方式是通过SecurityContextHolder的静态方法setStrategyName()来指定需要使用的strategy；第二种方式是通过系统属性进行指定，其中属性名默认为“spring.security.strategy”，属性值为对应strategy的名称。<br>  实现如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SecurityContextHolder</span> </span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> String MODE_THREADLOCAL = <span class="string">"MODE_THREADLOCAL"</span>;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> String MODE_INHERITABLETHREADLOCAL = <span class="string">"MODE_INHERITABLETHREADLOCAL"</span>;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> String MODE_GLOBAL = <span class="string">"MODE_GLOBAL"</span>;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> String SYSTEM_PROPERTY = <span class="string">"spring.security.strategy"</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> String strategyName = System.getProperty(<span class="string">"spring.security.strategy"</span>);</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> SecurityContextHolderStrategy strategy;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">int</span> initializeCount = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">SecurityContextHolder</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">clearContext</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        strategy.clearContext();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> SecurityContext <span class="title">getContext</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> strategy.getContext();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">int</span> <span class="title">getInitializeCount</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> initializeCount;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">initialize</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(!StringUtils.hasText(strategyName)) &#123;</span><br><span class="line">            strategyName = <span class="string">"MODE_THREADLOCAL"</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span>(strategyName.equals(<span class="string">"MODE_THREADLOCAL"</span>)) &#123;</span><br><span class="line">            strategy = <span class="keyword">new</span> ThreadLocalSecurityContextHolderStrategy();</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span>(strategyName.equals(<span class="string">"MODE_INHERITABLETHREADLOCAL"</span>)) &#123;</span><br><span class="line">            strategy = <span class="keyword">new</span> InheritableThreadLocalSecurityContextHolderStrategy();</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span>(strategyName.equals(<span class="string">"MODE_GLOBAL"</span>)) &#123;</span><br><span class="line">            strategy = <span class="keyword">new</span> GlobalSecurityContextHolderStrategy();</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                Class&lt;?&gt; clazz = Class.forName(strategyName);</span><br><span class="line">                Constructor&lt;?&gt; customStrategy = clazz.getConstructor(<span class="keyword">new</span> Class[<span class="number">0</span>]);</span><br><span class="line">                strategy = (SecurityContextHolderStrategy)customStrategy.newInstance(<span class="keyword">new</span> Object[<span class="number">0</span>]);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (Exception var2) &#123;</span><br><span class="line">                ReflectionUtils.handleReflectionException(var2);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ++initializeCount;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">setContext</span><span class="params">(SecurityContext context)</span> </span>&#123;</span><br><span class="line">        strategy.setContext(context);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">setStrategyName</span><span class="params">(String strategyName)</span> </span>&#123;</span><br><span class="line">        strategyName = strategyName;</span><br><span class="line">        initialize();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> SecurityContextHolderStrategy <span class="title">getContextHolderStrategy</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> strategy;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> SecurityContext <span class="title">createEmptyContext</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> strategy.createEmptyContext();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="string">"SecurityContextHolder[strategy='"</span> + strategyName + <span class="string">"'; initializeCount="</span> + initializeCount + <span class="string">"]"</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> &#123;</span><br><span class="line">        initialize();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>#小结<br>可以看出，当一个请求进来时，若是登录过的，则session必然存在安全上下文，直接取出来并存入SecurityContextHolder，若是未登录过的则将创建新的安全上下文并存入SecurityContextHolder中（如果未开启session则直接创建空的安全上下文并存入SecurityContextHolder）。凭证是否需要进行验证和权限的合法性则是之后验证器与鉴权器做的工作。</p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Spring-Security/" rel="tag"># Spring-Security</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/12/11/OAuth2.0设计.html" rel="next" title="OAuth2.0设计">
+                <i class="fa fa-chevron-left"></i> OAuth2.0设计
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/12/11/Spring-Security-认证流程.html" rel="prev" title="Spring Security 认证流程">
+                Spring Security 认证流程 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC80MDkwNi8xNzQzMQ=="></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/jiaao.jpg" alt="贾傲">
+            
+              <p class="site-author-name" itemprop="name">贾傲</p>
+              <p class="site-description motion-element" itemprop="description">关于学习，生活</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">9</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#开始"><span class="nav-number">1.</span> <span class="nav-text">开始</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#认证服务"><span class="nav-number">2.</span> <span class="nav-text">认证服务</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贾傲</span>
+
+  
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> v6.5.0</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv" title="总访客量">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="site-pv" title="总访问量">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+      <div>
+        <!-- Go to www.addthis.com/dashboard to customize your tools -->
+<div class="addthis_inline_share_toolbox">
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-5be52b92832a63b5" async="async"></script>
+</div>
+
+      </div>
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.5.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+    <script type="text/javascript">
+      window.livereOptions = {
+        refer: '2018/12/11/Spring Security 认证原理(一) .html'
+      };
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
