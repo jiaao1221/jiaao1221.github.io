@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.5.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/baozi.png?v=6.5.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.5.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.5.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="开始如果要对业务系统做认证保护的话，最好是非侵入式的，那么认证的功能可以交给过滤器去完成。spring security就是这样做的。当每个请求进来时，要经过一系列的过滤器，判断是否认证且权限是否满足。 过滤器主要的过滤器如下图:![此处输入图片的描述][1]我们主要关注SecurityContextPersistenceFilter，UsernamePasswordAuthenticationF">
+<meta name="keywords" content="Spring-Security">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spring Security 认证原理(三)">
+<meta property="og:url" content="http://jiaao67.xn--6qq986b3xl/2019/01/08/Spring-Security-认证原理-三.html">
+<meta property="og:site_name" content="jiaao&#39;s blog">
+<meta property="og:description" content="开始如果要对业务系统做认证保护的话，最好是非侵入式的，那么认证的功能可以交给过滤器去完成。spring security就是这样做的。当每个请求进来时，要经过一系列的过滤器，判断是否认证且权限是否满足。 过滤器主要的过滤器如下图:![此处输入图片的描述][1]我们主要关注SecurityContextPersistenceFilter，UsernamePasswordAuthenticationF">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:updated_time" content="2019-01-08T10:14:57.940Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Spring Security 认证原理(三)">
+<meta name="twitter:description" content="开始如果要对业务系统做认证保护的话，最好是非侵入式的，那么认证的功能可以交给过滤器去完成。spring security就是这样做的。当每个请求进来时，要经过一系列的过滤器，判断是否认证且权限是否满足。 过滤器主要的过滤器如下图:![此处输入图片的描述][1]我们主要关注SecurityContextPersistenceFilter，UsernamePasswordAuthenticationF">
+
+
+
+
+
+
+  <link rel="canonical" href="http://jiaao67.xn--6qq986b3xl/2019/01/08/Spring-Security-认证原理-三.html">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Spring Security 认证原理(三) | jiaao's blog</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">jiaao's blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <p class="site-subtitle">Stay Hungry, Stay Foolish</p>
+      
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/about/" rel="section"><i class="menu-item-icon fa fa-fw fa-user"></i> <br>关于</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://jiaao67.xn--6qq986b3xl/2019/01/08/Spring-Security-认证原理-三.html">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="贾傲">
+      <meta itemprop="description" content="关于学习，生活">
+      <meta itemprop="image" content="/images/jiaao.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="jiaao's blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Spring Security 认证原理(三)
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-01-08 14:11:39 / 修改时间：18:14:57" itemprop="dateCreated datePublished" datetime="2019-01-08T14:11:39+08:00">2019-01-08</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing"><a href="/categories/学习笔记/" itemprop="url" rel="index"><span itemprop="name">学习笔记</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="post-meta-item-icon">
+            <i class="fa fa-eye"></i>
+             阅读次数： 
+            <span class="busuanzi-value" id="busuanzi_value_page_pv"></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="开始"><a href="#开始" class="headerlink" title="开始"></a>开始</h1><p>如果要对业务系统做认证保护的话，最好是非侵入式的，那么认证的功能可以交给过滤器去完成。spring security就是这样做的。当每个请求进来时，要经过一系列的过滤器，判断是否认证且权限是否满足。</p>
+<h1 id="过滤器"><a href="#过滤器" class="headerlink" title="过滤器"></a>过滤器</h1><p>主要的过滤器如下图:<br>![此处输入图片的描述][1]<br>我们主要关注SecurityContextPersistenceFilter，UsernamePasswordAuthenticationFilter，RememberMeAuthenticationFilter，AnonymousAuthenticationFilter，ExceptionTransactionFilter和FilterSecurityInterceptor。<br>在解析前，先说说两个至关重要的类：OncePerRequestFilter和GenericFilterBean，在过滤器链的过滤器中，或多或少间接或直接继承到</p>
+<p>OncePerRequestFilter顾名思义，能够确保在一次请求只通过一次filter，而不需要重复执行。</p>
+<p>GenericFilterBean是javax.servlet.Filter接口的一个基本的实现类<br>GenericFilterBean将web.xml中filter标签中的配置参数-init-param项作为bean的属性<br>GenericFilterBean可以简单地成为任何类型的filter的父类<br>GenericFilterBean的子类可以自定义一些自己需要的属性<br>GenericFilterBean，将实际的过滤工作留给他的子类来完成，这就导致了他的子类不得不实现doFilter方法<br>GenericFilterBean不依赖于Spring的ApplicationContext，Filters通常不会直接读取他们的容器信息（ApplicationContext concept）而是通过访问spring容器（Spring root application context）中的service beans来获取，通常是通过调用filter里面的getServletContext() 方法来获取</p>
+<h2 id="SecurityContextPersistenceFilter"><a href="#SecurityContextPersistenceFilter" class="headerlink" title="SecurityContextPersistenceFilter"></a>SecurityContextPersistenceFilter</h2><p>SecurityContextPersistenceFilter的两个主要作用便是请求来临时，创建SecurityContext安全上下文信息和请求结束时清空SecurityContextHolder。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doFilter</span><span class="params">(ServletRequest req, ServletResponse res, FilterChain chain)</span></span></span><br><span class="line"><span class="function">       <span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">    HttpServletRequest request = (HttpServletRequest) req;</span><br><span class="line">    HttpServletResponse response = (HttpServletResponse) res;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (request.getAttribute(FILTER_APPLIED) != <span class="keyword">null</span>) &#123;</span><br><span class="line">       <span class="comment">// ensure that filter is only applied once per request</span></span><br><span class="line">       chain.doFilter(request, response);</span><br><span class="line">       <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">boolean</span> debug = logger.isDebugEnabled();</span><br><span class="line">    request.setAttribute(FILTER_APPLIED, Boolean.TRUE);</span><br><span class="line">    <span class="keyword">if</span> (forceEagerSessionCreation) &#123;</span><br><span class="line">	HttpSession session = request.getSession();</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (debug &amp;&amp; session.isNew()) &#123;</span><br><span class="line">		logger.debug(<span class="string">"Eagerly created session: "</span> + session.getId());</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">    HttpRequestResponseHolder holder = <span class="keyword">new</span> HttpRequestResponseHolder(request,</span><br><span class="line">          response);</span><br><span class="line">    <span class="comment">//从Session中获取安全上下文信息</span></span><br><span class="line">    SecurityContext contextBeforeChainExecution = repo.loadContext(holder);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">       <span class="comment">//请求开始时，设置安全上下文信息，这样就避免了用户直接从Session中获取安全上下文信息</span></span><br><span class="line">       SecurityContextHolder.setContext(contextBeforeChainExecution);</span><br><span class="line">       chain.doFilter(holder.getRequest(), holder.getResponse());</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">finally</span> &#123;</span><br><span class="line">       <span class="comment">//请求结束后，清空安全上下文信息</span></span><br><span class="line">       SecurityContext contextAfterChainExecution = SecurityContextHolder</span><br><span class="line">             .getContext();</span><br><span class="line">       SecurityContextHolder.clearContext();</span><br><span class="line">       repo.saveContext(contextAfterChainExecution, holder.getRequest(),</span><br><span class="line">             holder.getResponse());</span><br><span class="line">       request.removeAttribute(FILTER_APPLIED);</span><br><span class="line">       <span class="keyword">if</span> (debug) &#123;</span><br><span class="line">          logger.debug(<span class="string">"SecurityContextHolder now cleared, as request processing completed"</span>);</span><br><span class="line">       &#125;</span><br><span class="line">    &#125;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="UsernamePasswordAuthenticationFilter"><a href="#UsernamePasswordAuthenticationFilter" class="headerlink" title="UsernamePasswordAuthenticationFilter"></a>UsernamePasswordAuthenticationFilter</h2><p>用于处理来自表单提交的认证，继承AbstractAuthenticationProcessingFilter，子类主要实现身份的认证。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">  <span class="function"><span class="keyword">public</span> Authentication <span class="title">attemptAuthentication</span><span class="params">(HttpServletRequest request,</span></span></span><br><span class="line"><span class="function"><span class="params">		HttpServletResponse response)</span> <span class="keyword">throws</span> AuthenticationException </span>&#123;</span><br><span class="line">	<span class="keyword">if</span> (postOnly &amp;&amp; !request.getMethod().equals(<span class="string">"POST"</span>)) &#123;</span><br><span class="line">		<span class="keyword">throw</span> <span class="keyword">new</span> AuthenticationServiceException(</span><br><span class="line">				<span class="string">"Authentication method not supported: "</span> + request.getMethod());</span><br><span class="line">	&#125;</span><br><span class="line">       <span class="comment">//获取表单中的用户名和密码</span></span><br><span class="line">	String username = obtainUsername(request);</span><br><span class="line">	String password = obtainPassword(request);</span><br><span class="line">	<span class="keyword">if</span> (username == <span class="keyword">null</span>) &#123;</span><br><span class="line">		username = <span class="string">""</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> (password == <span class="keyword">null</span>) &#123;</span><br><span class="line">		password = <span class="string">""</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	username = username.trim();</span><br><span class="line">       <span class="comment">//组装成username+password形式的token</span></span><br><span class="line">	UsernamePasswordAuthenticationToken authRequest = <span class="keyword">new</span> UsernamePasswordAuthenticationToken(</span><br><span class="line">			username, password);</span><br><span class="line">	<span class="comment">// Allow subclasses to set the "details" property</span></span><br><span class="line">	setDetails(request, authRequest);</span><br><span class="line">       <span class="comment">//交给内部的AuthenticationManager去认证，并返回认证后的信息</span></span><br><span class="line">	<span class="keyword">return</span> <span class="keyword">this</span>.getAuthenticationManager().authenticate(authRequest);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>父类实现：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doFilter</span><span class="params">(ServletRequest req, ServletResponse res, FilterChain chain)</span></span></span><br><span class="line"><span class="function">		<span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line"></span><br><span class="line">	HttpServletRequest request = (HttpServletRequest) req;</span><br><span class="line">	HttpServletResponse response = (HttpServletResponse) res;</span><br><span class="line">	...</span><br><span class="line">	Authentication authResult;</span><br><span class="line">	<span class="keyword">try</span> &#123;</span><br><span class="line">		<span class="comment">//此处实际上就是调用UsernamePasswordAuthenticationFilter的attemptAuthentication方法</span></span><br><span class="line">		authResult = attemptAuthentication(request, response);</span><br><span class="line">		<span class="keyword">if</span> (authResult == <span class="keyword">null</span>) &#123;</span><br><span class="line">			<span class="comment">//子类未完成认证，立刻返回</span></span><br><span class="line">			<span class="keyword">return</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		sessionStrategy.onAuthentication(authResult, request, response);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//在认证过程中可以直接抛出异常，在过滤器中，就像此处一样，进行捕获</span></span><br><span class="line">	<span class="keyword">catch</span> (InternalAuthenticationServiceException failed) &#123;</span><br><span class="line">		<span class="comment">//内部服务异常</span></span><br><span class="line">		unsuccessfulAuthentication(request, response, failed);</span><br><span class="line">		<span class="keyword">return</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">catch</span> (AuthenticationException failed) &#123;</span><br><span class="line">		<span class="comment">//认证失败</span></span><br><span class="line">		unsuccessfulAuthentication(request, response, failed);</span><br><span class="line">		<span class="keyword">return</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//认证成功</span></span><br><span class="line">	<span class="keyword">if</span> (continueChainBeforeSuccessfulAuthentication) &#123;</span><br><span class="line">		chain.doFilter(request, response);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//注意，认证成功后过滤器把authResult结果也传递给了成功处理器</span></span><br><span class="line">	successfulAuthentication(request, response, chain, authResult);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="RememberMeAuthenticationFilter"><a href="#RememberMeAuthenticationFilter" class="headerlink" title="RememberMeAuthenticationFilter"></a>RememberMeAuthenticationFilter</h2><p>当用户没有登录而直接访问资源时, 从cookie里找出用户的信息, 如果Spring Security能够识别出用户提供的remember me cookie, 用户将不必填写用户名和密码, 而是直接登录进入系统. 它先分析SecurityContext里有没有Authentication对象. 如果有, 则不做任何操作, 直接跳到下一个过滤器. 如果没有, 则检查request里有没有包含remember-me的cookie信息. 如果有, 则解析出cookie里的验证信息, 判断是否有权限.<br>在第一次登录时(如果勾选了remember me),在验证信息正确后,AbstractAuthenticationProcessingFilter(UsernamePasswordAuthenticationFilter的父类)最后会调用一个叫successfulAuthentication()的方法,这个方法会调用rememberMeService的loginSuccess()方法.loginSuccess()方法最后会调用onLoginSuccess()方法.<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">   <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">successfulAuthentication</span><span class="params">(HttpServletRequest request, HttpServletResponse response,</span></span></span><br><span class="line"><span class="function"><span class="params">		Authentication authResult)</span> <span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line"> </span><br><span class="line">	<span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">		logger.debug(<span class="string">"Authentication success. Updating SecurityContextHolder to contain: "</span> + authResult);</span><br><span class="line">	&#125;</span><br><span class="line"> </span><br><span class="line">	SecurityContextHolder.getContext().setAuthentication(authResult);</span><br><span class="line"> </span><br><span class="line">	<span class="comment">// 调用rememberMeServices的loginSuccess()方法.这里的实例是TokenBasedRememberMeServices</span></span><br><span class="line">	rememberMeServices.loginSuccess(request, response, authResult);</span><br><span class="line"> </span><br><span class="line">	<span class="comment">// Fire event</span></span><br><span class="line">	<span class="keyword">if</span> (<span class="keyword">this</span>.eventPublisher != <span class="keyword">null</span>) &#123;</span><br><span class="line">		eventPublisher.publishEvent(<span class="keyword">new</span> InteractiveAuthenticationSuccessEvent(authResult, <span class="keyword">this</span>.getClass()));</span><br><span class="line">	&#125;</span><br><span class="line"> </span><br><span class="line">	successHandler.onAuthenticationSuccess(request, response, authResult);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//TokenBasedRememberMeServices</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onLoginSuccess</span><span class="params">(HttpServletRequest request, HttpServletResponse response,</span></span></span><br><span class="line"><span class="function"><span class="params">		Authentication successfulAuthentication)</span> </span>&#123;</span><br><span class="line"> </span><br><span class="line">	String username = retrieveUserName(successfulAuthentication);</span><br><span class="line">	String password = retrievePassword(successfulAuthentication);</span><br><span class="line"> </span><br><span class="line">	<span class="comment">// If unable to find a username and password, just abort as TokenBasedRememberMeServices is</span></span><br><span class="line">	<span class="comment">// unable to construct a valid token in this case.</span></span><br><span class="line">	<span class="keyword">if</span> (!StringUtils.hasLength(username)) &#123;</span><br><span class="line">		logger.debug(<span class="string">"Unable to retrieve username"</span>);</span><br><span class="line">		<span class="keyword">return</span>;</span><br><span class="line">	&#125;</span><br><span class="line"> </span><br><span class="line">	<span class="keyword">if</span> (!StringUtils.hasLength(password)) &#123;</span><br><span class="line">		UserDetails user = getUserDetailsService().loadUserByUsername(username);</span><br><span class="line">		password = user.getPassword();</span><br><span class="line"> </span><br><span class="line">		<span class="keyword">if</span> (!StringUtils.hasLength(password)) &#123;</span><br><span class="line">			logger.debug(<span class="string">"Unable to obtain password for user: "</span> + username);</span><br><span class="line">			<span class="keyword">return</span>;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"> </span><br><span class="line">	<span class="keyword">int</span> tokenLifetime = calculateLoginLifetime(request, successfulAuthentication);</span><br><span class="line">	<span class="keyword">long</span> expiryTime = System.currentTimeMillis();</span><br><span class="line">	<span class="comment">// SEC-949</span></span><br><span class="line">	expiryTime += <span class="number">1000L</span>* (tokenLifetime &lt; <span class="number">0</span> ? TWO_WEEKS_S : tokenLifetime);</span><br><span class="line"> </span><br><span class="line">	<span class="comment">// 把用户名, cookie的过期时间, 登录密码和key组成一个字符串, 然后用MD5加密</span></span><br><span class="line">	String signatureValue = makeTokenSignature(expiryTime, username, password);</span><br><span class="line"> </span><br><span class="line">	<span class="comment">// 把加密字符串放进cookie里, 然后返回给浏览器</span></span><br><span class="line">	setCookie(<span class="keyword">new</span> String[] &#123;username, Long.toString(expiryTime), signatureValue&#125;, tokenLifetime, request, response);</span><br><span class="line"> </span><br><span class="line">	<span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">		logger.debug(<span class="string">"Added remember-me cookie for user '"</span> + username + <span class="string">"', expiry: '"</span></span><br><span class="line">				+ <span class="keyword">new</span> Date(expiryTime) + <span class="string">"'"</span>);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>这个方法主设置了一个cookie在用户的浏览器上, 它包含一个Base64编码的字符串, 包含以下内容:<br>用户的名字;<br>过期的日期/时间;<br>一个MD5的加密字符串, 包括过期日期/时间, 用户名和密码;<br>应用的key值, 是在TokenBasedRememberMeServices实例的key属性中定义的.<br>这些内容将通过Base64加密然后组合成一个cookie的值存储在浏览器中以备后用.</p>
+<p>RememberMeAuthenticationFilter的doFilter()方法如下:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doFilter</span><span class="params">(ServletRequest req, ServletResponse res, FilterChain chain)</span></span></span><br><span class="line"><span class="function">		<span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">	HttpServletRequest request = (HttpServletRequest) req;</span><br><span class="line">	HttpServletResponse response = (HttpServletResponse) res;</span><br><span class="line"> </span><br><span class="line">	<span class="comment">// 如果SecurityContext里没有包含Authentication对象</span></span><br><span class="line">	<span class="keyword">if</span> (SecurityContextHolder.getContext().getAuthentication() == <span class="keyword">null</span>) &#123;</span><br><span class="line">	</span><br><span class="line">		<span class="comment">// 从request里解析出SPRING_SECURITY_REMEMBER_ME_COOKIE的信息, 然后转成一个RememberMeAuthenticationToken对象</span></span><br><span class="line">		Authentication rememberMeAuth = rememberMeServices.autoLogin(request, response);</span><br><span class="line"> </span><br><span class="line">		<span class="keyword">if</span> (rememberMeAuth != <span class="keyword">null</span>) &#123;</span><br><span class="line">			<span class="comment">// Attempt authenticaton via AuthenticationManager</span></span><br><span class="line">			<span class="keyword">try</span> &#123;</span><br><span class="line">				<span class="comment">// 再判断rememberMeAuth对象里的key值是否与配置文件里的key值相同</span></span><br><span class="line">				rememberMeAuth = authenticationManager.authenticate(rememberMeAuth);</span><br><span class="line"> </span><br><span class="line">				<span class="comment">// Store to SecurityContextHolder</span></span><br><span class="line">				SecurityContextHolder.getContext().setAuthentication(rememberMeAuth);</span><br><span class="line"> </span><br><span class="line">				onSuccessfulAuthentication(request, response, rememberMeAuth);</span><br><span class="line"> </span><br><span class="line">				<span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">					logger.debug(<span class="string">"SecurityContextHolder populated with remember-me token: '"</span></span><br><span class="line">						+ SecurityContextHolder.getContext().getAuthentication() + <span class="string">"'"</span>);</span><br><span class="line">				&#125;</span><br><span class="line"> </span><br><span class="line">				<span class="comment">// Fire event</span></span><br><span class="line">				<span class="keyword">if</span> (<span class="keyword">this</span>.eventPublisher != <span class="keyword">null</span>) &#123;</span><br><span class="line">					eventPublisher.publishEvent(<span class="keyword">new</span> InteractiveAuthenticationSuccessEvent(</span><br><span class="line">							SecurityContextHolder.getContext().getAuthentication(), <span class="keyword">this</span>.getClass()));</span><br><span class="line">				&#125;</span><br><span class="line"> </span><br><span class="line">				<span class="keyword">if</span> (successHandler != <span class="keyword">null</span>) &#123;</span><br><span class="line">					successHandler.onAuthenticationSuccess(request, response, rememberMeAuth);</span><br><span class="line"> </span><br><span class="line">					<span class="keyword">return</span>;</span><br><span class="line">				&#125;</span><br><span class="line"> </span><br><span class="line">			&#125; <span class="keyword">catch</span> (AuthenticationException authenticationException) &#123;</span><br><span class="line">				<span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">					logger.debug(<span class="string">"SecurityContextHolder not populated with remember-me token, as "</span></span><br><span class="line">							+ <span class="string">"AuthenticationManager rejected Authentication returned by RememberMeServices: '"</span></span><br><span class="line">							+ rememberMeAuth + <span class="string">"'; invalidating remember-me token"</span>, authenticationException);</span><br><span class="line">				&#125;</span><br><span class="line"> </span><br><span class="line">				rememberMeServices.loginFail(request, response);</span><br><span class="line"> </span><br><span class="line">				onUnsuccessfulAuthentication(request, response, authenticationException);</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"> </span><br><span class="line">		chain.doFilter(request, response);</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		<span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">			logger.debug(<span class="string">"SecurityContextHolder not populated with remember-me token, as it already contained: '"</span></span><br><span class="line">				+ SecurityContextHolder.getContext().getAuthentication() + <span class="string">"'"</span>);</span><br><span class="line">		&#125;</span><br><span class="line"> </span><br><span class="line">		chain.doFilter(request, response);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="AnonymousAuthenticationFilter"><a href="#AnonymousAuthenticationFilter" class="headerlink" title="AnonymousAuthenticationFilter"></a>AnonymousAuthenticationFilter</h2><p>Spirng Security为了整体逻辑的统一性，即使是未通过认证的用户，也给予了一个匿名身份。而AnonymousAuthenticationFilter位于常用的身份认证过滤器（如UsernamePasswordAuthenticationFilter、RememberMeAuthenticationFilter）之后，意味着只有在上述身份过滤器执行完毕后，SecurityContext依旧没有用户信息，AnonymousAuthenticationFilter会给予用户一个匿名身份。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doFilter</span><span class="params">(ServletRequest req, ServletResponse res, FilterChain chain)</span></span></span><br><span class="line"><span class="function">      <span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">   <span class="comment">//过滤器链都执行到匿名认证过滤器还没有身份信息，塞一个匿名身份进去</span></span><br><span class="line">   <span class="keyword">if</span> (SecurityContextHolder.getContext().getAuthentication() == <span class="keyword">null</span>) &#123;</span><br><span class="line">      SecurityContextHolder.getContext().setAuthentication(</span><br><span class="line">            createAuthentication((HttpServletRequest) req));</span><br><span class="line">   &#125;</span><br><span class="line">   chain.doFilter(req, res);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> Authentication <span class="title">createAuthentication</span><span class="params">(HttpServletRequest request)</span> </span>&#123;</span><br><span class="line">  <span class="comment">//创建一个AnonymousAuthenticationToken</span></span><br><span class="line">   AnonymousAuthenticationToken auth = <span class="keyword">new</span> AnonymousAuthenticationToken(key,</span><br><span class="line">         principal, authorities);</span><br><span class="line">   auth.setDetails(authenticationDetailsSource.buildDetails(request));</span><br><span class="line"></span><br><span class="line">   <span class="keyword">return</span> auth;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="ExceptionTransactionFilter"><a href="#ExceptionTransactionFilter" class="headerlink" title="ExceptionTransactionFilter"></a>ExceptionTransactionFilter</h2><p>Spring Security的Filter链表中ExceptionTranslationFilter就放在FilterSecurityInterceptor的前面。而ExceptionTranslationFilter是捕获来自FilterChain的异常，并对这些异常做处理。ExceptionTranslationFilter能够捕获来自FilterChain所有的异常，但是它只会处理两类异常，AuthenticationException和AccessDeniedException，其它的异常它会继续抛出。如果捕获到的是AuthenticationException，那么将会使用其对应的AuthenticationEntryPoint的commence()处理。如果捕获的异常是一个AccessDeniedException，那么将视当前访问的用户是否已经登录认证做不同的处理，如果未登录，则会使用关联的AuthenticationEntryPoint的commence()方法进行处理，否则将使用关联的AccessDeniedHandler的handle()方法进行处理。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">   <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ExceptionTranslationFilter</span> <span class="keyword">extends</span> <span class="title">GenericFilterBean</span> </span>&#123;</span><br><span class="line">  <span class="comment">//处理异常转换的核心方法</span></span><br><span class="line">  <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">handleSpringSecurityException</span><span class="params">(HttpServletRequest request,</span></span></span><br><span class="line"><span class="function"><span class="params">        HttpServletResponse response, FilterChain chain, RuntimeException exception)</span></span></span><br><span class="line"><span class="function">        <span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">     <span class="keyword">if</span> (exception <span class="keyword">instanceof</span> AuthenticationException) &#123;</span><br><span class="line">       	<span class="comment">//重定向到登录端点</span></span><br><span class="line">        sendStartAuthentication(request, response, chain,</span><br><span class="line">              (AuthenticationException) exception);</span><br><span class="line">     &#125;</span><br><span class="line">     <span class="keyword">else</span> <span class="keyword">if</span> (exception <span class="keyword">instanceof</span> AccessDeniedException) &#123;</span><br><span class="line">        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();</span><br><span class="line">        <span class="keyword">if</span> (authenticationTrustResolver.isAnonymous(authentication) || authenticationTrustResolver.isRememberMe(authentication)) &#123;</span><br><span class="line">		  <span class="comment">//重定向到登录端点</span></span><br><span class="line">           sendStartAuthentication(</span><br><span class="line">                 request,</span><br><span class="line">                 response,</span><br><span class="line">                 chain,</span><br><span class="line">                 <span class="keyword">new</span> InsufficientAuthenticationException(</span><br><span class="line">                       <span class="string">"Full authentication is required to access this resource"</span>));</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">           <span class="comment">//交给accessDeniedHandler处理</span></span><br><span class="line">           accessDeniedHandler.handle(request, response,</span><br><span class="line">                 (AccessDeniedException) exception);</span><br><span class="line">        &#125;</span><br><span class="line">     &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h2 id="FilterSecurityInterceptor"><a href="#FilterSecurityInterceptor" class="headerlink" title="FilterSecurityInterceptor"></a>FilterSecurityInterceptor</h2><p>FilterSecurityInterceptor从SecurityContextHolder中获取Authentication对象，然后比对用户拥有的权限和资源所需的权限。前者可以通过Authentication对象直接获得，而后者则需要引入我们之前一直未提到过的两个类：SecurityMetadataSource，AccessDecisionManager。SecurityMetadataSource用来获取资源所需要的权限，而AccessDecisionManager用来进行权限认证，也就是比对用户是否有访问资源的权限<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br></pre></td><td class="code"><pre><span class="line">   <span class="comment">//FilterSecurityInterceptor</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">doFilter</span><span class="params">(ServletRequest request, ServletResponse response,</span></span></span><br><span class="line"><span class="function"><span class="params">            FilterChain chain)</span> <span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">        FilterInvocation fi = <span class="keyword">new</span> FilterInvocation(request, response, chain);</span><br><span class="line">        invoke(fi);</span><br><span class="line">    &#125;</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">invoke</span><span class="params">(FilterInvocation fi)</span> <span class="keyword">throws</span> IOException, ServletException </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> ((fi.getRequest() != <span class="keyword">null</span>)</span><br><span class="line">                &amp;&amp; (fi.getRequest().getAttribute(FILTER_APPLIED) != <span class="keyword">null</span>)</span><br><span class="line">                &amp;&amp; observeOncePerRequest) &#123;</span><br><span class="line">            <span class="comment">// filter already applied to this request and user wants us to observe</span></span><br><span class="line">            <span class="comment">// once-per-request handling, so don't re-do security checking</span></span><br><span class="line">            fi.getChain().doFilter(fi.getRequest(), fi.getResponse());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// first time this request being called, so perform security checking</span></span><br><span class="line">            <span class="keyword">if</span> (fi.getRequest() != <span class="keyword">null</span>) &#123;</span><br><span class="line">                fi.getRequest().setAttribute(FILTER_APPLIED, Boolean.TRUE);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            InterceptorStatusToken token = <span class="keyword">super</span>.beforeInvocation(fi);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                fi.getChain().doFilter(fi.getRequest(), fi.getResponse());</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">finally</span> &#123;</span><br><span class="line">                <span class="keyword">super</span>.finallyInvocation(token);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">super</span>.afterInvocation(token, <span class="keyword">null</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">//AbstractSecurityInterceptor</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> InterceptorStatusToken <span class="title">beforeInvocation</span><span class="params">(Object object)</span> </span>&#123;</span><br><span class="line">        Assert.notNull(object, <span class="string">"Object was null"</span>);</span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">boolean</span> debug = logger.isDebugEnabled();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (!getSecureObjectClass().isAssignableFrom(object.getClass())) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(</span><br><span class="line">                    <span class="string">"Security invocation attempted for object "</span></span><br><span class="line">                            + object.getClass().getName()</span><br><span class="line">                            + <span class="string">" but AbstractSecurityInterceptor only configured to support secure objects of type: "</span></span><br><span class="line">                            + getSecureObjectClass());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Collection&lt;ConfigAttribute&gt; attributes = <span class="keyword">this</span>.obtainSecurityMetadataSource()</span><br><span class="line">                .getAttributes(object);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (attributes == <span class="keyword">null</span> || attributes.isEmpty()) &#123;</span><br><span class="line">            <span class="keyword">if</span> (rejectPublicInvocations) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(</span><br><span class="line">                        <span class="string">"Secure object invocation "</span></span><br><span class="line">                                + object</span><br><span class="line">                                + <span class="string">" was denied as public invocations are not allowed via this interceptor. "</span></span><br><span class="line">                                + <span class="string">"This indicates a configuration error because the "</span></span><br><span class="line">                                + <span class="string">"rejectPublicInvocations property is set to 'true'"</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (debug) &#123;</span><br><span class="line">                logger.debug(<span class="string">"Public object - authentication not attempted"</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            publishEvent(<span class="keyword">new</span> PublicInvocationEvent(object));</span><br><span class="line"></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>; <span class="comment">// no further work post-invocation</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (debug) &#123;</span><br><span class="line">            logger.debug(<span class="string">"Secure object: "</span> + object + <span class="string">"; Attributes: "</span> + attributes);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (SecurityContextHolder.getContext().getAuthentication() == <span class="keyword">null</span>) &#123;</span><br><span class="line">            credentialsNotFound(messages.getMessage(</span><br><span class="line">                    <span class="string">"AbstractSecurityInterceptor.authenticationNotFound"</span>,</span><br><span class="line">                    <span class="string">"An Authentication object was not found in the SecurityContext"</span>),</span><br><span class="line">                    object, attributes);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Authentication authenticated = authenticateIfRequired();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Attempt authorization</span></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="keyword">this</span>.accessDecisionManager.decide(authenticated, object, attributes);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">catch</span> (AccessDeniedException accessDeniedException) &#123;</span><br><span class="line">            publishEvent(<span class="keyword">new</span> AuthorizationFailureEvent(object, attributes, authenticated,</span><br><span class="line">                    accessDeniedException));</span><br><span class="line"></span><br><span class="line">            <span class="keyword">throw</span> accessDeniedException;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (debug) &#123;</span><br><span class="line">            logger.debug(<span class="string">"Authorization successful"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (publishAuthorizationSuccess) &#123;</span><br><span class="line">            publishEvent(<span class="keyword">new</span> AuthorizedEvent(object, attributes, authenticated));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Attempt to run as a different user</span></span><br><span class="line">        Authentication runAs = <span class="keyword">this</span>.runAsManager.buildRunAs(authenticated, object,</span><br><span class="line">                attributes);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (runAs == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (debug) &#123;</span><br><span class="line">                logger.debug(<span class="string">"RunAsManager did not change Authentication object"</span>);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// no further work post-invocation</span></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> InterceptorStatusToken(SecurityContextHolder.getContext(), <span class="keyword">false</span>,</span><br><span class="line">                    attributes, object);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (debug) &#123;</span><br><span class="line">                logger.debug(<span class="string">"Switching to RunAs Authentication: "</span> + runAs);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            SecurityContext origCtx = SecurityContextHolder.getContext();</span><br><span class="line">            SecurityContextHolder.setContext(SecurityContextHolder.createEmptyContext());</span><br><span class="line">            SecurityContextHolder.getContext().setAuthentication(runAs);</span><br><span class="line"></span><br><span class="line">            <span class="comment">// need to revert to token.Authenticated post-invocation</span></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> InterceptorStatusToken(origCtx, <span class="keyword">true</span>, attributes, object);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<h1 id="结尾"><a href="#结尾" class="headerlink" title="结尾"></a>结尾</h1><p>主要介绍了几种过滤器的实现，接下来就是研究spring security是如何完成所有配置的。<br>  [1]: <a href="https://img-blog.csdn.net/2018030516271456" target="_blank" rel="noopener">https://img-blog.csdn.net/2018030516271456</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+       
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Spring-Security/" rel="tag"># Spring-Security</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/01/03/Spring-Security-认证原理-二.html" rel="next" title="Spring Security 认证原理(二)">
+                <i class="fa fa-chevron-left"></i> Spring Security 认证原理(二)
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC80MDkwNi8xNzQzMQ=="></div>
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/jiaao.jpg" alt="贾傲">
+            
+              <p class="site-author-name" itemprop="name">贾傲</p>
+              <p class="site-description motion-element" itemprop="description">关于学习，生活</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">10</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/index.html">
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#开始"><span class="nav-number">1.</span> <span class="nav-text">开始</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#过滤器"><span class="nav-number">2.</span> <span class="nav-text">过滤器</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#SecurityContextPersistenceFilter"><span class="nav-number">2.1.</span> <span class="nav-text">SecurityContextPersistenceFilter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#UsernamePasswordAuthenticationFilter"><span class="nav-number">2.2.</span> <span class="nav-text">UsernamePasswordAuthenticationFilter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RememberMeAuthenticationFilter"><span class="nav-number">2.3.</span> <span class="nav-text">RememberMeAuthenticationFilter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#AnonymousAuthenticationFilter"><span class="nav-number">2.4.</span> <span class="nav-text">AnonymousAuthenticationFilter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ExceptionTransactionFilter"><span class="nav-number">2.5.</span> <span class="nav-text">ExceptionTransactionFilter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#FilterSecurityInterceptor"><span class="nav-number">2.6.</span> <span class="nav-text">FilterSecurityInterceptor</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#结尾"><span class="nav-number">3.</span> <span class="nav-text">结尾</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">贾傲</span>
+
+  
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> v6.5.0</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv" title="总访客量">
+      <i class="fa fa-user"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+    </span>
+  
+
+  
+    <span class="site-pv" title="总访问量">
+      <i class="fa fa-eye"></i>
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+      <div>
+        <!-- Go to www.addthis.com/dashboard to customize your tools -->
+<div class="addthis_inline_share_toolbox">
+  <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-5be52b92832a63b5" async="async"></script>
+</div>
+
+      </div>
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.5.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.5.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.5.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.5.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.5.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.5.0"></script>
+
+
+
+  
+
+
+
+  
+    <script type="text/javascript">
+      window.livereOptions = {
+        refer: '2019/01/08/Spring-Security-认证原理-三.html'
+      };
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
