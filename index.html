@@ -131,30 +131,28 @@
             animation: horseReveal 3s ease-out forwards, horsePulse 4s infinite 3s ease-in-out;
         }
         
-        /* 跑道动画 - 移除所有字体相关样式 */
-        .elegant-horse {
+        /* 跑道动画 - 完全内联SVG */
+        .elegant-horse-runner {
             position: absolute;
             opacity: 0;
             animation: horseRun 10s infinite linear;
-            width: 80px;
-            height: 60px;
         }
         
-        .elegant-horse:nth-child(1) {
+        .elegant-horse-runner:nth-child(1) {
             bottom: 20%;
             left: -10%;
             animation-delay: 0s;
             transform: scale(1.2);
         }
         
-        .elegant-horse:nth-child(2) {
+        .elegant-horse-runner:nth-child(2) {
             bottom: 35%;
             left: -15%;
             animation-delay: 2s;
             transform: scale(1.1);
         }
         
-        .elegant-horse:nth-child(3) {
+        .elegant-horse-runner:nth-child(3) {
             bottom: 50%;
             left: -5%;
             animation-delay: 4s;
@@ -253,7 +251,7 @@
                 width: 150px;
                 height: 150px;
             }
-            .elegant-horse {
+            .elegant-horse-runner svg {
                 width: 60px;
                 height: 45px;
             }
@@ -277,7 +275,7 @@
                 width: 120px;
                 height: 120px;
             }
-            .elegant-horse {
+            .elegant-horse-runner svg {
                 width: 50px;
                 height: 38px;
             }
@@ -312,10 +310,28 @@
         <!-- 中央马形动画 -->
         <div class="central-horse">🐎</div>
         
-        <!-- 跑道上的高端精致马 - 使用外部SVG文件 -->
-        <img class="elegant-horse" src="elegant-horse-final.svg" alt="骏马">
-        <img class="elegant-horse" src="elegant-horse-final.svg" alt="骏马">
-        <img class="elegant-horse" src="elegant-horse-final.svg" alt="骏马">
+        <!-- 跑道上的高端精致马 - 完全内联SVG -->
+        <div class="elegant-horse-runner">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="80" height="60">
+                <path d="M15,40 C10,35 5,30 10,25 C15,20 25,20 30,25 C35,30 40,40 45,45 C50,50 60,55 65,50 C70,45 75,35 70,30 C65,25 55,25 50,30 C45,35 40,45 35,50 C30,55 20,60 15,55 C10,50 5,45 15,40 Z" fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+                <path d="M45,45 C50,40 55,35 60,40 C65,45 70,55 65,60 C60,65 50,65 45,60 C40,55 35,50 45,45 Z" fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+                <path d="M10,25 C5,20 0,15 5,10 C10,5 20,5 25,10 C30,15 35,20 30,25 C25,30 15,30 10,25 Z" fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+            </svg>
+        </div>
+        <div class="elegant-horse-runner">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="80" height="60">
+                <path d="M15,40 C10,35 5,30 10,25 C15,20 25,20 30,25 C35,30 40,40 45,45 C50,50 60,55 65,50 C70,45 75,35 70,30 C65,25 55,25 50,30 C45,35 40,45 35,50 C30,55 20,60 15,55 C10,50 5,45 15,40 Z" fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+                <path d="M45,45 C50,40 55,35 60,40 C65,45 70,55 65,60 C60,65 50,65 45,60 C40,55 35,50 45,45 Z" fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+                <path d="M10,25 C5,20 0,15 5,10 C10,5 20,5 25,10 C30,15 35,20 30,25 C25,30 15,30 10,25 Z" fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+            </svg>
+        </div>
+        <div class="elegant-horse-runner">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="80" height="60">
+                <path d="M15,40 C10,35 5,30 10,25 C15,20 25,20 30,25 C35,30 40,40 45,45 C50,50 60,55 65,50 C70,45 75,35 70,30 C65,25 55,25 50,30 C45,35 40,45 35,50 C30,55 20,60 15,55 C10,50 5,45 15,40 Z" fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+                <path d="M45,45 C50,40 55,35 60,40 C65,45 70,55 65,60 C60,65 50,65 45,60 C40,55 35,50 45,45 Z" fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+                <path d="M10,25 C5,20 0,15 5,10 C10,5 20,5 25,10 C30,15 35,20 30,25 C25,30 15,30 10,25 Z" fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+            </svg>
+        </div>
         
         <!-- 装饰元素 -->
         <div class="cloud cloud-1">☁️</div>
