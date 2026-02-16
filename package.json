@@ -1,0 +1,15 @@
+{
+  "name": "new-year-2026",
+  "version": "1.0.0",
+  "description": "2026 Horse Year New Year Blessing Page",
+  "main": "index.html",
+  "scripts": {
+    "start": "serve -s ."
+  },
+  "devDependencies": {
+    "serve": "^14.0.0"
+  },
+  "dependencies": {
+    "vercel": "^50.17.1"
+  }
+}
