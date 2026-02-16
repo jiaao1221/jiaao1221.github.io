@@ -85,6 +85,14 @@
             line-height: 1.6;
         }
         
+        .signature {
+            font-size: 1.2rem;
+            color: #FFD700;
+            margin-top: 20px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            font-style: italic;
+        }
+        
         .refresh-btn {
             background: linear-gradient(45deg, #FFD700, #FFA500);
             color: #8B0000;
@@ -108,27 +116,6 @@
         
         .refresh-btn:active {
             transform: translateY(0) scale(0.98);
-        }
-        
-        /* 高级马年动画容器 */
-        .horse-animation-container {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-            pointer-events: none;
-        }
-        
-        /* 中央马形SVG动画 */
-        .central-horse {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            width: 200px;
-            height: 200px;
-            opacity: 0;
-            animation: horseReveal 3s ease-out forwards, horsePulse 4s infinite 3s ease-in-out;
         }
         
         /* 动画定义 */
@@ -160,32 +147,6 @@
             }
         }
         
-        @keyframes horseReveal {
-            0% {
-                transform: translate(-50%, -50%) scale(0);
-                opacity: 0;
-            }
-            70% {
-                transform: translate(-50%, -50%) scale(1.2);
-                opacity: 1;
-            }
-            100% {
-                transform: translate(-50%, -50%) scale(1);
-                opacity: 1;
-            }
-        }
-        
-        @keyframes horsePulse {
-            0%, 100% {
-                transform: translate(-50%, -50%) scale(1);
-                text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
-            }
-            50% {
-                transform: translate(-50%, -50%) scale(1.05);
-                text-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
-            }
-        }
-        
         /* 响应式设计 */
         @media (max-width: 768px) {
             .title {
@@ -198,13 +159,12 @@
                 min-height: 160px;
                 line-height: 1.5;
             }
+            .signature {
+                font-size: 1rem;
+            }
             .refresh-btn {
                 font-size: 1.2rem;
                 padding: 12px 25px;
-            }
-            .central-horse {
-                width: 150px;
-                height: 150px;
             }
         }
         
@@ -218,33 +178,13 @@
                 min-height: 140px;
                 line-height: 1.4;
             }
+            .signature {
+                font-size: 0.9rem;
+            }
             .refresh-btn {
                 font-size: 1.1rem;
                 padding: 10px 20px;
             }
-            .central-horse {
-                width: 120px;
-                height: 120px;
-            }
-        }
-        
-        /* 祥云装饰 */
-        .cloud {
-            position: absolute;
-            opacity: 0.05;
-            z-index: 2;
-        }
-        
-        .cloud-1 {
-            top: 20%;
-            left: 30%;
-            font-size: 3rem;
-        }
-        
-        .cloud-2 {
-            top: 70%;
-            right: 25%;
-            font-size: 2.5rem;
         }
     </style>
 </head>
@@ -252,21 +192,12 @@
     <!-- 粒子背景 -->
     <div class="particles" id="particles"></div>
     
-    <!-- 高级马年动画 -->
-    <div class="horse-animation-container">
-        <!-- 中央马形动画 -->
-        <div class="central-horse">🐎</div>
-        
-        <!-- 装饰元素 -->
-        <div class="cloud cloud-1">☁️</div>
-        <div class="cloud cloud-2">☁️</div>
-    </div>
-    
     <div class="container">
         <h1 class="title">2026马年新年祝福</h1>
         <div id="blessing" class="blessing">
             点击下方按钮获取您的专属祝福！
         </div>
+        <div class="signature">来自贾傲的祝福</div>
         <button class="refresh-btn" onclick="getRandomBlessing()">换一个祝福</button>
     </div>
 
