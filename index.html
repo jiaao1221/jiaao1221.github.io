@@ -134,33 +134,31 @@
         /* 跑道动画 */
         .horse-runner {
             position: absolute;
-            font-size: 2.5rem;
             opacity: 0;
-            animation: horseRun 8s infinite linear;
+            animation: horseRun 10s infinite linear;
+            width: 80px;
+            height: 60px;
         }
         
         .horse-runner:nth-child(1) {
             bottom: 20%;
             left: -10%;
             animation-delay: 0s;
-            font-size: 3rem;
-            color: #FFD700;
+            transform: scale(1.2);
         }
         
         .horse-runner:nth-child(2) {
             bottom: 35%;
             left: -15%;
-            animation-delay: 1s;
-            font-size: 2.8rem;
-            color: #FFA500;
+            animation-delay: 2s;
+            transform: scale(1.1);
         }
         
         .horse-runner:nth-child(3) {
             bottom: 50%;
             left: -5%;
-            animation-delay: 2s;
-            font-size: 2.5rem;
-            color: #FF8C00;
+            animation-delay: 4s;
+            transform: scale(1);
         }
         
         /* 动画定义 */
